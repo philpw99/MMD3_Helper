@@ -7,6 +7,10 @@ command(s)
 
 =============  Direct Commands  ===================
 
+mouse double click: it will play a random action if mouse is on top of the model.
+-----
+mouseDblClick
+=============
 Load a model: Load a model into desktop
 -----
 loadModel:model1:{
@@ -32,10 +36,6 @@ loadModel:model1:{
   }
 }
 =============
-mouse double click: it will play a random action if mouse is on top of the model.
------
-mouseDblClick
-=============
 perform an action: let the model do the specific action
 -----
 model1.action:{
@@ -59,6 +59,7 @@ model1.action:{
 }
 ==========
 Model1 dance with a song: (0_1) 0 means initial rotation is 0 degree, 1 is file encoding in utf8. Setting in item.json.
+-----
 model1.DanceReady:0_1|C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3\AppData\Assets\The Baddest - KDA\kda«the baddest»_vmd
 model1.DanceStart:0	(0 means only active model dances)
 ==========
