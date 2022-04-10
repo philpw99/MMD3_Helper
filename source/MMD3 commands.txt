@@ -1,0 +1,227 @@
+end of the message |*_*|  ??
+	SendMsg( string msg)
+				msg += "|*_*|";
+				byte[] bytes = Encoding.UTF8.GetBytes(msg);
+				COPYDATASTRUCT lParam = default(COPYDATASTRUCT);
+				lParam.dwData = (IntPtr)8;
+				lParam.cbData = bytes.Length;
+				lParam.lpData = Marshal.AllocHGlobal(bytes.Length);
+				Marshal.Copy(bytes, 0, lParam.lpData, bytes.Length);
+				SendMessage((IntPtr)hostHD, 74u, 0, ref lParam);
+SendMsg used by 
+    In PubLib.cs
+	InitInfo()				"CoreHandle:" + monIndex + ":" + hd
+	CreateEffectItemByJsonStrAsync()	"loadEffectFinished"
+	LoadBackgroundByJsonStrAsync() 		"loadBackgroundFinished"
+	DoLoadPMXModelAsync() 			"ModelLoadFinished"
+	SaveModelPos()				"properties:"+go.name+.{"x":x, "y":y,}
+		used by CreateModelItemByJsonStrAsync(), DoLoadPMXModelAsync(),
+    In FUIControler.cs
+	Awake()					"ThemeLoadFinished"
+    In MMDAI.cs
+	Update()->if(Input.GetMouseButtonUp(0)) "properties:goName.{"x":x,"y":y}"
+	  or "properties:goName.{"autoRotation":r,"rotation":"0,0,0",}"
+	  or "active:goName"
+	DoReactionMotion()			"modelcmd:goName.clicked"
+	OnPartClicked(sPart)			"modelcmd:goName.partClicked:sPart"
+
+
+EnableAllModelLockToTaskbar:true/false
+====
+EnabledGlobalShowShadow:true/false
+====
+EnableAllModelAutoWander:true/false
+====
+EnableAllModelLeftButtonWalk:true/false
+====
+EnableAllModelMidButtonWalk:true/false
+====
+isGlobleLockToOrigPostion:true/false
+====
+isGlobleMouseThrough:true/false
+====
+UpdateAllPhysical:<jsStr>
+	Default values:
+				hairPhy.damping = 0.2f;
+				hairPhy.elasticity = 0.05f;
+				hairPhy.stiffness = 0.85f;
+				hairPhy.inert = 0f;
+				hairPhy.radius = 0f;
+				breastPhy.damping = 0.03f;
+				breastPhy.elasticity = 0.05f;
+				breastPhy.stiffness = 0.1f;
+				breastPhy.inert = 0.9f;
+				breastPhy.radius = 0f;
+				shirtPhy.damping = 0.1f;
+				shirtPhy.elasticity = 0.05f;
+				shirtPhy.stiffness = 0.7f;
+				shirtPhy.inert = 0.5f;
+				shirtPhy.radius = 0f;
+				tailPhy.damping = 0.2f;
+				tailPhy.elasticity = 0.05f;
+				tailPhy.stiffness = 0.1f;
+				tailPhy.inert = 0f;
+				tailPhy.radius = 0f;
+json structure:
+object
+	"hair":{
+		"damping":
+		"elasticity":
+		"stiffness":
+		"inert":
+		"radius":
+		}
+	breast
+		damping
+		elasticity
+		stiffness
+		inert
+		radius
+	shirt
+		damping
+		elasticity
+		stiffness
+		inert
+		radius
+	tail
+		damping
+		elasticity
+		stiffness
+		inert
+		radius
+
+====
+renderStyleNormal:1  ; Set the ThemeInfo's RenderStyleNormal
+====
+renderStyleTransparent  ; Set the ThemeInfo's RenderStyleTransparent
+
+debug:1		; enable debug mode
+frameRate:	; set default framerate 30 or 60
+UpdateAllModelMaterialSmoothness	; no para, just update
+SetModelMatVisible:aTitle|_|aMatName|_|true/false  ; aTitle:the model's title, aMatName:material name
+SetModelMatSyle:aTitle2|_|aMatName2|_|aStyle
+UpdateModelMatOption:aTitle3|_|aMatName3|_|aMatJson
+AllModelLimitInScreen		; no para
+mouseMidClick			; If set middle button walk, the current model will walk to the current mouse cursor
+====
+loadEffect:<jsStr>	; set effect by the json string
+<jsStr>	aName:<jsString>	; aName will become a game object name, need to enable global effect before this.
+	<jsString>  "src":	; effect prefab to load, a full path file or internal effects in "Prefabs/"
+		    "kind":
+		    "ec": true/false  ; Ec prefabs?
+
+====
+loadModel:<jsonStr>
+<jsonStr>aName:
+		type:			; "pmx", "vrm" or "" for other unity type
+		(kind):
+		src:		; name of model file, can contain relative/full path
+		path:		; relative path. "" means current model folder
+		(isFile): true/false	; default: true
+		(ec): true/false	; default: false  Is the file UTF8 encoded?
+		(lookAtBoneOffset): 	; default: "0,0,0"
+		(gender):		; default gender
+====
+[{<jsStr}]
+<jsStr>
+command1
+command2
+...
+DoCmdInfo(command)	; Not implemented yet
+
+====
+msg1|_|msg2|_|msg3
+DoCmdItem(<msg>)
+<msg>
+    goName.k:v
+	; k: "load", v: directory	; reload the theme, goName not matter
+	; goName: "option"		; various options
+		; k: "timeScale", v: StrToFloat(v, 1f)
+		; k: "mute", ; Not implemented yet.
+		; k: "lightGlobal_ColorTemperature", v: StrToFloat(v, 5500f)
+		; k: "lightGlobal_intensity2", v: StrToFloat(v, 4f)
+		; k: "lightGlobal_shadow", v: "true/false"
+		; k: "lockEyeballMovement", v: "true/false"
+		; k: "lightModel_ColorTemperature2", v: 8000f
+		; k: "lightModel_intensity2", v: 3f
+		; k: "volumeWhiteBalanceTemp", v: 
+		; k: "volumeWhiteBalanceTint", v: tint.value float
+		; k: "defaultSmoothness", v: 0.5f
+		; k: "defaultMetallic", v: float
+		; k: "modelVoiceVolume", v: 0.1f
+		; k: "mouseTouchIntensity", v: 0.1f
+		; k: "quality", v: StrToInt(v, 1)
+		; k: "bloomIntensity", v: float
+		; k: "bloomThreshold", v: float
+		; k: "bloomDiffusion", v: 0.7f
+		; k: "colorHueShift", v: float
+		; k: "colorSaturation", v: float
+		; k: "colorContrast", v: float
+		; k: "colorExposure", v: float
+	; k: "backgroundSrc", v: path and name of the wallpaper  ( goName not matter )
+	; k: "backgroundKind" or "backgroundType", v: "video"/"image"/"color"/"scene"/"skybox"  (goName not matter)
+	; k: filter.xxxx = v	; Set the filter property to v ( goName not matter)
+
+	; Start from here goName needs to be valid GameObject name.
+	; goName is a GameObject name, and k has "." like "aaa.bbb"
+		DoComponentCmd( GameObject.GetComponent( <type>"aaa", "bbb") , v )
+	; goName is a GameObject name, and k has no "."
+	; **** Important here
+		DoGoCmd( GameObject, k , v )
+	; goName is MonoBehaviour (script) name
+		DoComponentCmd( <MonoBehaviour>goName, k , v )
+	; DoComponentCmd is about enable or remove something, or set some values like color
+
+====	Not all above, then it's regarded as a single msgItem
+DoCmdItem(msgItem)
+
+================
+Details of DoGoCmd
+DoGoCmd ( go, k, v )
+	go needs to be a valid GameObject
+	k: "intensity"  	; not implemented yet
+	k: "active"		; wave to indicate the active model
+	k: "x"			; go object will be moved to x = v
+	k: "y"			; go object will be moved to y = v
+	k: "offsetz"		; go object will be moved to <float>v
+	k: "zoom"		; go setZoom( <float>v )
+	k: "autoWander"		; go autoWander = <bool> v
+	k: "leftClickWalk"	; go leftClickWalk = <bool> v
+	k: "midClickWalk"	; go midClickWalk = <bool> v
+	k: "DanceReady"	v:"0_1|danceFileSrc"   ; 0 initial rotation, 1 ec  Get ready for dance
+	k: "DanceReadyAll" v:"0_1|danceFileSrc"   ; 0 initial rotation, 1 ec  Get all models ready for dance
+	k: "DanceStart"	v: isAllModelDance?true/false
+	k: "DanceEnd" 	v: do the greeting? true/false
+	k: "Pose"	v: flag2_ec3|text3	; flag2 : for all models? 0/1(default),  ec3: encoded? 0/1(default)
+	k: "StopPose" 	v: all? true(default)/false
+	k: "customize" 	v: childGo|partIndex	; set the child game object with partIndex to be visible
+	k: "autoRotation" v: true(default)/false
+	k: "lockToTaskbar" v: true/false(default)
+	k: "lockInScreen" v: true/false(default)
+	k: "Interrupt" 	v:  	; v has no use. Interrupt all dances.
+	k: "remove_animation" 	; do "Bye" action then be removed
+	k: "gender"	v: 0(female)/1(male)
+	k: "defaultEmotion v:  	; set default emotion to v
+	k: "playEmotion" v:	; set play v emotion
+	k: "stop"	v:	; v has no use. stop the current go
+	k: "action"	v:	; go.DoCustomAction(v)
+	k: "playMotion" v: src|ec4	; src is the motion source, ec4 default to be false
+	k: "playAudio"	v: "voicexx|0" 	; 0 is female, voicexx is the built-in voice name
+	k: "playAudio" 	v: "file"	; play voice file.
+Other commands:
+	k: "enable"	v: true(default)/false	; enable game object
+	k: "Image_Src"	v: xxx	; set xxx as the image
+	k: "Image_Src_AutoSize" v: xxx	; Set the image with autosizing.
+	k: "scale"	v: 1f	; set the scale of model.
+	k: "position" v: "0,0,0" ; set new vector position
+	k: "rotation: v: "0,0,0" ; set new vector rotation
+	k: "materialColor" v: color	; This is for particle system color
+	k: "startColor"	v: color	; This is for particle system color
+	k: "maxParticles" v: max	; Particle system. max is 1000
+	k: "startColor2	v: color	; Particle system
+	k: "materialOpacity" v: 1f	; alpha value of particle system's material, default 1f
+	k: "opacity"	v: 1f	; alpha value of particle system, default 1f
+	k: "remove"	v:	; remove go or remove the effect
+	k: "aaa.bbb"	v:	; aaa: type, get monoBehaviour based on "type", then run DoComponentCmd( <mono>aaa, bbb, v)
+	k: all the rest: SetProperty( go, k, v)
+

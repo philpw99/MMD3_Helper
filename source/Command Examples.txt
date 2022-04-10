@@ -1,0 +1,274 @@
+Below are the example commands that can be sent to the DMMDCore3.exe. They all follows the formats like:
+
+Feature: description
+-----		( The minor separator)
+command(s)
+======== 	( The main separator )
+
+=============  Direct Commands  ===================
+
+Load a model: Load a model into desktop
+-----
+loadModel:model1:{
+  "name":"Reisalin Stout_Black",
+  "kind":"model",
+  "type":"pmx",
+  "enabled":true,
+  "path":"C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\1480480\\2368486223\\",
+  "src":"C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\1480480\\2368486223\\Reisalin Stout_Black.pmx",
+  "ec":true,
+  "zoom":2,
+  "autoWander":false,
+  "lockToTaskbar":false,
+  "leftClickWalk":false,
+  "midClickWalk":false,
+  "lookAtBoneOffset":"0,0,0",
+  "renderStyleNormal":0,
+  "renderStyleTransparent":0,
+  "gender":0,
+  "properties":[],
+  "physical":{
+    "autoMatchStyle":"min"
+  }
+}
+=============
+mouse double click: it will play a random action if mouse is on top of the model.
+-----
+mouseDblClick
+=============
+perform an action: let the model do the specific action
+-----
+model1.action:{
+  "name":"Sara - You got a promotion",
+  "kind":"action",
+  "type":"anim",
+  "gender":"0",
+  "src":"female\\Happy8",
+  "audio":"C:\\Program Files (x86)\\Steam\\steamapps\\common\\DesktopMMD3\\AppData\\Assets\\Sara - You got a promotion\\you got a promotion.wav",
+  "audioDelay":"0",
+  "emotionDelay":"0",
+  "emotionSpeed":"1",
+  "emotionDuration":"8",
+  "initialRotation":"0",
+  "emotion":"Happy"
+}
+-----
+model1.action:{
+  "name":"Sara - Do you think I am beautiful tonight",
+  "audio":"C:\\Program Files (x86)\\Steam\\steamapps\\common\\DesktopMMD3\\AppData\\Assets\\Sara - Do you think I am beautiful tonight\\do you think I am beautiful tonight.wav"
+}
+==========
+Model1 dance with a song: (0_1) 0 means initial rotation is 0 degree, 1 is file encoding in utf8. Setting in item.json.
+model1.DanceReady:0_1|C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3\AppData\Assets\The Baddest - KDA\kda«the baddest»_vmd
+model1.DanceStart:0	(0 means only active model dances)
+==========
+Model1 stop dancing
+-----
+model1.DanceEnd:1	( 1 means the model will do the greeting at the end )
+==========
+All models dance with a song:
+-----
+model1.DanceReadyAll:0_1|C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3\AppData\Assets\The Baddest - KDA\kda«the baddest»_vmd
+model1.DanceStart:1	( 1 means all models will dance. )
+==========
+All models stop dancing
+-----
+model1.DanceEnd:1
+==========
+Random dance with VLC (randomly choose: Mid_Rhythm_Dance_08 )
+-----
+model1.DanceReady:0_0|Mid_Rhythm_Dance_08
+model1.DanceStart:0
+==========
+Stop motion/dancing immediately
+-----
+model1.stop
+model1.Interrupt
+==========
+show/set active model
+-----
+model1.active
+===========
+instantly move to the middle of screen
+-----
+model1.x:0.5
+model1.y:0.5
+===========
+play emotion ( Happy/Angry/Shy/Sad/Surprise )
+-----
+model1.playEmotion:Happy
+==========
+remove from the screen (Danger: there is no way to restore it back to the screen.)
+-----
+model1.remove
+model1.remove_animation
+Note: the model is still loaded. Have to close it manually.
+
+===================  Options  ===========================
+
+
+Limit all models to the screen
+-----
+AllModelLimitInScreen
+==========
+Models->Loaded->set "Always Face Foward"
+-----
+model1.autoRotation:0  (or 1)
+===========
+Models->Loaded->set custom rotation x,y,z (All in degrees. x is leaning forward, y is right to left, z is rotation clock wise)
+-----
+model1.rotation:46,0,0
+===========
+Models->Loaded->set model zoom level
+-----
+model1.zoom:1.50
+==========
+Models->Loaded->set model "Lock To Taskbar"
+-----
+model1.lockToTaskbar:1
+==========
+Models->Loaded->set model "Auto Wander"
+-----
+model1.autoWander:1
+==========
+Models->Loaded->set model "Left Button Click to Walk"
+-----
+model1.leftClickWalk:1
+==========
+Models->Loaded->set model "Mid Button Click to Walk"
+-----
+model1.midClickWalk:1
+==========
+Models->Loaded->set model "Distance"
+-----
+model1.offsetz:0  ( minus to be further, plus to be closer)
+==========
+Edit Model->Rendering->disable specific texture
+-----
+SetModelMatVisible:Reisalin Stout_Black|_|0.Legs|_|False
+==========
+Edit Model->Rendering->set texture properties
+-----
+UpdateModelMatOption:Reisalin Stout_Black|_|0.Legs|_|{"style":"normal", "smoothness":"0.39" }
+UpdateModelMatOption:Reisalin Stout_Black|_|0.Legs|_|{"style":"normal", "metallic":"0.03" }
+UpdateModelMatOption:Reisalin Stout_Black|_|0.Legs|_|{"style":"normal", "color":"212,198,198,255" }
+==========
+Options->Common->set mouse through to true
+-----
+isGlobalMouseThrough:1
+==========
+Options->Common->set frame rate to 60
+-----
+frameRate:60
+==========
+Options->Common->Graphic quality (Anti-aliasing) to low
+-----
+option.quality:0
+=========
+Options->Common->Graphic quality (Anti-aliasing) to normal
+-----
+option.quality:1
+==========
+Options->Common->Graphic quality (Anti-aliasing) to high
+-----
+option.quality:2
+==========
+Options->Common->Graphic quality (Anti-aliasing) to very high
+-----
+option.quality:3
+==========
+Options->Model->Set "Shadow on the ground"
+-----
+EnabledGlobalShowShadow:0
+==========
+Options->Model->Set "Shadow on the body"
+-----
+option.lightGlobal_shadow:true
+==========
+Options->Model->Lock Models postion
+-----
+isGlobleLockToOrigPostion:1
+==========
+Options->Model->Lock eyeballs movement
+-----
+option.lockEyeballMovement:true
+==========
+Options->Model->Default Auto Wander
+-----
+EnableAllModelAutoWander:1
+==========
+Options->Model->Default Lock to Taskbar
+-----
+EnableAllModelLockToTaskbar:1
+==========
+Options->Model->Mouse touch sensitivity
+-----
+option.mouseTouchIntensity:0.05
+==========
+Options->Model->Model voice volume
+-----
+option.modelVoiceVolume:0.40
+==========
+Options->Model->Default rendering smoothness
+-----
+option.defaultSmoothness:0.47
+UpdateAllModelMaterialSmoothness
+==========
+Options->Model->Default rendering metallic
+-----
+option.defaultMetallic:0.04
+UpdateAllModelMaterialSmoothness
+==========
+Options->Light->Global light intensity
+-----
+option.lightGlobal_intensity2:2.40
+==========
+Options->Light->Global light temperature
+-----
+option.lightGlobal_ColorTemperature:4696
+==========
+Options->Light->Model light intensity
+-----
+option.lightModel_intensity2:3.80
+==========
+Options->Light->Model light temperature
+-----
+option.lightModel_ColorTemperature2:6161
+==========
+Options->Light->White Balance Temperature (default is 0)
+-----
+option.volumeWhiteBalanceTemp:4
+==========
+Options->Light->White Balance Tint (default 0)
+-----
+option.volumeWhiteBalanceTint:0
+==========
+Options->Rendering->Bloom Intensity
+-----
+option.bloomIntensity:0.03
+==========
+Options->Rendering->Bloom Threshold
+-----
+option.bloomThreshold:0.07
+==========
+Options->Rendering->Bloom Diffusion
+-----
+option.bloomDiffusion:0.04
+==========
+Options->Rendering->Color Hue
+-----
+option.colorHueShift:13
+==========
+Options->Rendering->Color Saturation
+-----
+option.colorSaturation:2
+==========
+Options->Rendering->Color Contrast
+-----
+option.colorContrast:4
+==========
+Options->Rendering->Color Exposure
+-----
+option.colorExposure:0.24
+==========
+
