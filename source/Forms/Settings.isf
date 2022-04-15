@@ -1,105 +1,66 @@
 ; -- Created with ISN Form Studio 2 for ISN AutoIt Studio -- ;
-Local $tab = GUICtrlCreatetab(40,172,413,284,-1,-1)
-GuiCtrlSetState(-1,2048)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlCreateTabItem("Background")
-GUICtrlCreateTabItem("")
-_GUICtrlTab_SetCurFocus($tab,-1)
-Local $inpMMD3Path = GUICtrlCreateInput("C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3\",40,41,413,20,-1,$WS_EX_CLIENTEDGE)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlSetTip(-1,"The full path to DesktopMMD3.exe Default setting is for Steam version.")
-GUICtrlCreateLabel("Full path to DesktopMMD3.exe",40,20,206,19,-1,-1)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlSetBkColor(-1,"-2")
-Local $btnBrowseMMD3 = GUICtrlCreateButton("Browse",472,33,100,28,-1,-1)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-Local $inpWorkshopPath = GUICtrlCreateInput("C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480",40,91,413,20,-1,$WS_EX_CLIENTEDGE)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Full path to Steam workshop folders which contains all downloaded items.")
-GUICtrlCreateLabel("Full path to workshop folder",40,70,169,21,-1,-1)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlSetBkColor(-1,"-2")
-Local $btnBrowseWorkshop = GUICtrlCreateButton("Browse",472,83,100,28,-1,-1)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlCreateInput("C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3\",679,150,413,20,-1,$WS_EX_CLIENTEDGE)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlCreateLabel("Full path to DesktopMMD3.exe",679,129,206,19,-1,-1)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlSetBkColor(-1,"-2")
-GUICtrlCreateButton("Browse",1111,142,100,28,-1,-1)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-Local $btnSave = GUICtrlCreateButton("Save",472,438,100,30,-1,-1)
-GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUISwitch($guiSettings,_GUICtrlTab_SetCurFocus($tab,0)&GUICtrlRead ($tab, 1))
-GUICtrlCreateLabel("Options for dancing with backgrounds.",70,210,350,26,$SS_CENTER,-1)
+GUICtrlCreateGroup("Default Program to Control",54,17,466,72,-1,-1)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetBkColor(-1,"-2")
-Local $radDisable = GUICtrlCreateRadio("Disable",70,243,144,20,-1,-1)
+GUICtrlSetTip(-1,"Specify which program to control when started.")
+Local $radMMD3 = GUICtrlCreateRadio("DesktopMMD3",80,49,150,20,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Control DesktopMMD3 when the helper starts.")
+Local $radDME = GUICtrlCreateRadio("Desktop Magic Engine",284,49,150,20,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Control DME when the helper starts.")
+GUICtrlCreateGroup("DesktopMMD3 Settings",52,127,466,73,$BS_CENTER,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+Local $btnBrowseMMD3 = GUICtrlCreateButton("Path to DesktopMMD3.exe",72,157,205,28,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Default to the Steam app, or you can specified your own.")
+Local $btnBrowseMMD3Workshop = GUICtrlCreateButton("Path to Workshop Folder",302,157,180,28,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Default to the Steam's workshop folder, or you can specify your own.")
+GUICtrlCreateGroup("Desktop Magic Engine Settings",54,213,466,73,$BS_CENTER,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+Local $btnBrowseDME = GUICtrlCreateButton("Path to DesktopMagicEngine.exe",74,243,205,28,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Default to the Steam app, or you can specified your own.")
+Local $btnBrowseDMEWorkshop = GUICtrlCreateButton("Path to Workshop Folder",304,243,180,28,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Default to the Steam's workshop folder, or you can specify your own.")
+GUICtrlCreateGroup("Options for Dancing with backgrounds",56,350,323,198,$BS_CENTER,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetBkColor(-1,"0xFFFFFF")
+Local $radDisable = GUICtrlCreateRadio("Disable",85,382,144,20,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Not using this feature. Models dance just like before.")
-Local $radEnableRandom = GUICtrlCreateRadio("Enable - Random background",70,271,190,20,-1,-1)
+Local $radEnableRandom = GUICtrlCreateRadio("Enable - Random background",85,411,190,20,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 GUICtrlSetTip(-1,"The models will dance with a random background.")
-Local $radEnableSpecified = GUICtrlCreateRadio("Enable - Specified background",70,298,186,20,-1,-1)
+Local $radEnableSpecified = GUICtrlCreateRadio("Enable - Specified background",85,438,186,20,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Each dance has its own background. The one without setting it will not show any background.")
-Local $btnAssign = GUICtrlCreateButton("Assign",299,298,100,20,-1,-1)
+Local $btnAssignMMD3 = GUICtrlCreateButton("Assign MMD3",99,469,103,20,-1,-1)
+GUICtrlSetState(-1,BitOr($GUI_SHOW,$GUI_DISABLE))
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Assign background to dances.")
-Local $chkMoveToCenter = GUICtrlCreateCheckbox("Move to center when dance",70,335,179,20,-1,-1)
+GUICtrlSetTip(-1,"Assign background to dances for DesktopMMD3.")
+Local $btnAssignDME = GUICtrlCreateButton("Assign DME",220,469,107,20,-1,-1)
+GUICtrlSetState(-1,BitOr($GUI_SHOW,$GUI_DISABLE))
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Assign background to dances for DME.")
+Local $chkMoveToCenter = GUICtrlCreateCheckbox("Move to center when dance",77,501,179,20,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 GUICtrlSetTip(-1,"When a dance starts, move the active model to the center.")
-GUICtrlCreateTabItem("")
-Local $btnCancel = GUICtrlCreateButton("Cancel",472,396,100,30,-1,-1)
+Local $btnCancel = GUICtrlCreateButton("Cancel",407,518,100,30,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
-_GUICtrlTab_SetCurFocus($tab,0)
+Local $btnSave = GUICtrlCreateButton("Save",407,471,100,30,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
 
 
 
 #cs
-[tab]
-type=tab
-handle=432
-locked=0
-resize=
-x=40
-y=172
-width=413
-height=284
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=$tab
-text=
-pages=1
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=
-bgcolour=
-code=
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-order=0
-[0x00082018]
-order=0
-[TABPAGE1]
-page=1
-text=Background
-textmode=text
-handle=
 [gui]
 Handle_deklaration=local
 Handle_deklaration_const=false
 title=Settings
-breite=596
-hoehe=485
+breite=538
+hoehe=585
 style=-1
 exstyle=-1
 bgcolour=0xF0F0F0
@@ -130,274 +91,71 @@ gui_event_resized=
 gui_event_dropped=
 defaultfont=MS Sans Serif
 defaultfontsize=8
-[0x0001201C]
-type=input
-handle=433
-locked=0
-resize=
-x=40
-y=41
-width=413
-height=20
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=The full path to DesktopMMD3.exe Default setting is for Steam version.
-bgimage=
-textcolour=0x000000
-id=$inpMMD3Path
-text=C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3\
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=$WS_EX_CLIENTEDGE
-bgcolour=
-code=
-order=0
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-[0x0001201E]
-type=label
-handle=434
-locked=0
-resize=
-x=40
-y=20
-width=206
-height=19
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=
-text=Full path to DesktopMMD3.exe
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=
-bgcolour=-2
-code=
-order=2
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-[0x00012020]
+[0x00100222]
 type=button
-handle=435
+handle=432
 locked=0
 resize=
-x=472
-y=33
-width=100
+x=72
+y=157
+width=205
 height=28
 func=
 font=Tahoma
 fontsize=10
 fontstyle=400
 fontattribute=0
-tooltip=
+tooltip=Default to the Steam app, or you can specified your own.
 bgimage=
 textcolour=0x000000
 id=$btnBrowseMMD3
-text=Browse
+text=Path to DesktopMMD3.exe
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
 bgcolour=
 code=
-order=3
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-[0x00012022]
-type=input
-handle=436
-locked=0
-resize=
-x=40
-y=91
-width=413
-height=20
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=Full path to Steam workshop folders which contains all downloaded items.
-bgimage=
-textcolour=0x000000
-id=$inpWorkshopPath
-text=C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=$WS_EX_CLIENTEDGE
-bgcolour=
-code=
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
 order=4
-[0x00012024]
-type=label
-handle=437
+tabpage=0
+iconindex=
+iconlarge=0
+textmode=text
+[0x00C0200C]
+type=button
+handle=433
 locked=0
 resize=
-x=40
-y=70
-width=169
-height=21
+x=302
+y=157
+width=180
+height=28
 func=
 font=Tahoma
 fontsize=10
 fontstyle=400
 fontattribute=0
-tooltip=
+tooltip=Default to the Steam's workshop folder, or you can specify your own.
 bgimage=
 textcolour=0x000000
-id=
-text=Full path to workshop folder
+id=$btnBrowseMMD3Workshop
+text=Path to Workshop Folder
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
-bgcolour=-2
+bgcolour=
 code=
-tabpage=-1
+tabpage=0
 iconindex=
 iconlarge=0
 textmode=text
 order=5
-[0x00012026]
+[0x004F0314]
 type=button
-handle=438
+handle=434
 locked=0
 resize=
-x=472
-y=83
-width=100
-height=28
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=$btnBrowseWorkshop
-text=Browse
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=
-bgcolour=
-code=
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-order=6
-[0x00012028]
-type=input
-handle=439
-locked=0
-resize=
-x=679
-y=150
-width=413
-height=20
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=
-text=C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3\
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=$WS_EX_CLIENTEDGE
-bgcolour=
-code=
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-order=7
-[0x0001202A]
-type=label
-handle=440
-locked=0
-resize=
-x=679
-y=129
-width=206
-height=19
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=
-text=Full path to DesktopMMD3.exe
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=
-bgcolour=-2
-code=
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-order=8
-[0x0001202C]
-type=button
-handle=441
-locked=0
-resize=
-x=1111
-y=142
-width=100
-height=28
-func=
-font=Tahoma
-fontsize=10
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=
-text=Browse
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=
-bgcolour=
-code=
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-order=9
-[0x0001202E]
-type=button
-handle=442
-locked=0
-resize=
-x=472
-y=438
+x=407
+y=471
 width=100
 height=30
 func=
@@ -415,47 +173,18 @@ style=
 exstyle=
 bgcolour=
 code=
-order=10
+order=18
 tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00012030]
-type=label
-handle=443
-locked=0
-resize=
-x=70
-y=210
-width=350
-height=26
-func=
-font=Tahoma
-fontsize=12
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=
-text=Options for dancing with backgrounds.
-state=$GUI_SHOW+$GUI_ENABLE
-style=$SS_CENTER
-exstyle=
-bgcolour=-2
-code=
-order=12
-tabpage=0
-iconindex=
-iconlarge=0
-textmode=text
-[0x00012032]
+[0x001A030C]
 type=radio
-handle=444
+handle=435
 locked=0
 resize=
-x=70
-y=243
+x=85
+y=382
 width=144
 height=20
 func=
@@ -473,18 +202,18 @@ style=
 exstyle=
 bgcolour=
 code=
-order=13
-tabpage=0
+order=10
+tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00012034]
+[0x0048032C]
 type=radio
-handle=445
+handle=436
 locked=0
 resize=
-x=70
-y=271
+x=85
+y=411
 width=190
 height=20
 func=
@@ -502,18 +231,18 @@ style=
 exstyle=
 bgcolour=
 code=
-tabpage=0
+tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=14
-[0x00012036]
+order=11
+[0x002A0334]
 type=radio
-handle=446
+handle=437
 locked=0
 resize=
-x=70
-y=298
+x=85
+y=438
 width=186
 height=20
 func=
@@ -531,47 +260,47 @@ style=
 exstyle=
 bgcolour=
 code=
-tabpage=0
+tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=15
-[0x00012038]
+order=12
+[0x002A1850]
 type=button
-handle=447
+handle=438
 locked=0
 resize=
-x=299
-y=298
-width=100
+x=99
+y=469
+width=103
 height=20
 func=
 font=Tahoma
 fontsize=10
 fontstyle=400
 fontattribute=0
-tooltip=Assign background to dances.
+tooltip=Assign background to dances for DesktopMMD3.
 bgimage=
 textcolour=0x000000
-id=$btnAssign
-text=Assign
-state=$GUI_SHOW+$GUI_ENABLE
+id=$btnAssignMMD3
+text=Assign MMD3
+state=$GUI_SHOW+$GUI_DISABLE
 style=
 exstyle=
 bgcolour=
 code=
-order=16
-tabpage=0
+order=13
+tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x0001203A]
+[0x00120E54]
 type=checkbox
-handle=448
+handle=439
 locked=0
 resize=
-x=70
-y=335
+x=77
+y=501
 width=179
 height=20
 func=
@@ -589,18 +318,18 @@ style=
 exstyle=
 bgcolour=
 code=
-order=17
-tabpage=0
+order=15
+tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x0001203C]
+[0x002B0E52]
 type=button
-handle=449
+handle=440
 locked=0
 resize=
-x=472
-y=396
+x=407
+y=518
 width=100
 height=30
 func=
@@ -622,5 +351,266 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=18
+order=17
+[0x00360420]
+type=group
+handle=441
+locked=0
+resize=
+x=52
+y=127
+width=466
+height=73
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=
+bgimage=
+textcolour=0x000000
+id=
+text=DesktopMMD3 Settings
+state=$GUI_SHOW+$GUI_ENABLE
+style=$BS_CENTER
+exstyle=
+bgcolour=
+code=
+order=3
+tabpage=0
+iconindex=
+iconlarge=0
+textmode=text
+[0x00681360]
+type=group
+handle=442
+locked=0
+resize=
+x=54
+y=213
+width=466
+height=73
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=
+bgimage=
+textcolour=0x000000
+id=
+text=Desktop Magic Engine Settings
+state=$GUI_SHOW+$GUI_ENABLE
+style=$BS_CENTER
+exstyle=
+bgcolour=
+code=
+tabpage=0
+iconindex=
+iconlarge=0
+textmode=text
+order=6
+[0x00450328]
+type=button
+handle=443
+locked=0
+resize=
+x=74
+y=243
+width=205
+height=28
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=Default to the Steam app, or you can specified your own.
+bgimage=
+textcolour=0x000000
+id=$btnBrowseDME
+text=Path to DesktopMagicEngine.exe
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+tabpage=0
+iconindex=
+iconlarge=0
+textmode=text
+order=7
+[0x00100F56]
+type=button
+handle=444
+locked=0
+resize=
+x=304
+y=243
+width=180
+height=28
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=Default to the Steam's workshop folder, or you can specify your own.
+bgimage=
+textcolour=0x000000
+id=$btnBrowseDMEWorkshop
+text=Path to Workshop Folder
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+tabpage=0
+iconindex=
+iconlarge=0
+textmode=text
+order=8
+[0x00170F58]
+type=button
+handle=445
+locked=0
+resize=
+x=220
+y=469
+width=107
+height=20
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=Assign background to dances for DME.
+bgimage=
+textcolour=0x000000
+id=$btnAssignDME
+text=Assign DME
+state=$GUI_SHOW+$GUI_DISABLE
+style=
+exstyle=
+bgcolour=
+code=
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+order=14
+[0x00100F54]
+type=group
+handle=446
+locked=0
+resize=
+x=54
+y=17
+width=466
+height=72
+func=
+font=Tahoma
+fontsize=12
+fontstyle=400
+fontattribute=0
+tooltip=Specify which program to control when started.
+bgimage=
+textcolour=0x000000
+id=
+text=Default Program to Control
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+order=0
+tabpage=0
+iconindex=
+iconlarge=0
+textmode=text
+[0x00100EE4]
+type=radio
+handle=447
+locked=0
+resize=
+x=80
+y=49
+width=150
+height=20
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=Control DesktopMMD3 when the helper starts.
+bgimage=
+textcolour=0x000000
+id=$radMMD3
+text=DesktopMMD3
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+order=1
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+[0x00131D56]
+type=radio
+handle=448
+locked=0
+resize=
+x=284
+y=49
+width=150
+height=20
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=Control DME when the helper starts.
+bgimage=
+textcolour=0x000000
+id=$radDME
+text=Desktop Magic Engine
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+order=2
+[0x00230E5E]
+type=group
+handle=449
+locked=0
+resize=
+x=56
+y=350
+width=323
+height=198
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=
+bgimage=
+textcolour=0x000000
+id=
+text=Options for Dancing with backgrounds
+state=$GUI_SHOW+$GUI_ENABLE
+style=$BS_CENTER
+exstyle=
+bgcolour=0xFFFFFF
+code=
+order=9
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
 #ce

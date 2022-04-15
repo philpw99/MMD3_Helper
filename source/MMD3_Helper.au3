@@ -35,7 +35,7 @@ Global Const $gsAboutText = "MMD3 Helper " & $gsCurrentVersion & ", written by P
 Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
 
 ; Global settings
-Global $gsMMD3Path, $gsAssetPath, $gsWorkshopPath
+Global $gsMMD3Path, $gsMMD3AssetPath, $gsMMD3WorkshopPath
 
 
 ; Load forms below
@@ -61,6 +61,10 @@ If Not LoadGlobalSettings() Then
    ; If return is true, setting is saved. If not saved, false.
    if Not $bSave Then Exit 
 EndIf
+
+; Get MMD3 Handles
+$bGotIt =  GetMMD3Handles()
+; Get DME handles.
 
 Global $ghMMD3 = WinGetHandle( "DMMDCore3", "")
 If @error Then
@@ -89,8 +93,8 @@ Func LoadGlobalSettings()
    ; return: First Run  true/false
    $gsMMD3Path = RegRead($gsRegBase, "MMD3Path")	; Location of DesktopMMD3.exe
    If @error Then Return False
-   $gsAssetPath = RegRead($gsRegBase, "LocalAssetPath") ; Should be MMD3Path\AppData\Assets\
-   $gsWorkshopPath = RegRead($gsRegBase, "WorkshopPath") ; Download and installed workshop items path.
+   $gsMMD3AssetPath = $gsMMD3Path & "\AppData\Assets" ; Should be MMD3Path\AppData\Assets\
+   $gsMMD3WorkshopPath = RegRead($gsRegBase, "MMD3WorkshopPath") ; Download and installed workshop items path.
    $gsBackgroundShow = RegRead($gsRegBase, "BackgroundShow") ; Disable, EnableRandom or EnableSpecified
    $gsCenterWhenDance = RegRead($gsRegBase, "CenterWhenDance") ; 0 or 1
 
@@ -107,6 +111,16 @@ Func AlreadyRunning()
 		If StringInStr($sPath, "MMD3_Helper") <> 0 Then Return True
 	Next
 	Return False
+EndFunc
+
+Func GetFolderFromPath($FullPath)
+	; Get the folder and drive from a full path string without the last "\"
+	StringLeft( $FullPath, StringInStr($FullPath, "\", 1, -1) -1 )
+EndFunc
+
+Func GetFileFromPath($FullPath)
+	; Get the file name from a full path string.
+	StringMid( $FullPath, StringInStr($FullPath, "\", 1, -1) + 1)
 EndFunc
 
 Func c($str)
