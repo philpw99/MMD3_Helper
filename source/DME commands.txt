@@ -1,0 +1,86 @@
+Load an effect in DME, The data was sent twice
+-----
+loadEffect:effect:{
+  "name":"Bokehbigred",
+  "kind":"screen",
+  "type":"",
+  "enabled":true,
+  "path":"Bokehbigred",
+  "src":"Bokehbigred\\bokehbigred.xef",
+  "ec":false,
+  "position":"0,0,-13",
+  "rotation":"0,90,0"
+}
+==========
+Another effect
+-----
+loadEffect:effect:{
+  "name":"Bokehtinyblue2",
+  "kind":"screen",
+  "type":"",
+  "enabled":true,
+  "path":"Bokehtinyblue2",
+  "src":"Bokehtinyblue2\\bokehtinyblue2.xef",
+  "ec":false,
+  "position":"0,0,-14",
+  "rotation":"0,180,90"
+}
+==========
+Snow effect
+-----
+loadEffect:effect:{
+  "name":"Snow - soft2",
+  "kind":"screen",
+  "type":"",
+  "enabled":true,
+  "path":"C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\1096550\\2157221757\\",
+  "src":"C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\1096550\\2157221757\\snow - soft2.xef",
+  "ec":true,
+  "position":"0,30,0",
+  "rotation":"0,0,0"
+}
+==========
+Disable the effect
+-----
+effect.remove
+==========
+Load a model. ( Only send once.)
+-----
+loadModel:model1:{
+  "name":"MMD Punishing Gray Raven - Seven Realities",
+  "kind":"model",
+  "type":"pmx",
+  "enabled":true,
+  "path":"C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\1096550\\2745727379\\",
+  "src":"C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\1096550\\2745727379\\MMD Punishing Gray Raven - Seven Realities.pmx",
+  "ec":true,
+  "zoom":1,
+  "autoWander":true,
+  "lockToTaskbar":false,
+  "leftClickWalk":false,
+  "midClickWalk":false,
+  "lookAtBoneOffset":"0,0,0",
+  "renderStyleNormal":0,
+  "renderStyleTransparent":0,
+  "properties":[]
+}
+------
+Response from DME:
+ModelLoadFinished|*_*|
+==========
+Zoom  the model, Response from DME:
+-----
+model1.{"zoom":1.65,}|*_*|
+==========
+Move the model, Response from DME:
+-----
+properties:model1.{"x":-2.47562,"y":0.4675436,}|*_*|
+==========
+Rotate the model, response from DME:
+-----
+properties:model1.{"x":-2.123333,"y":0.2731285,"autoRotation":False,"rotation":"0,67.17425,0",}|*_*|
+==========
+Choose the active model, response from DME:
+-----
+active:model1|*_*|
+==========

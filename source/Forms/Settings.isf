@@ -44,13 +44,16 @@ Local $btnAssignDME = GUICtrlCreateButton("Assign DME",220,469,107,20,-1,-1)
 GUICtrlSetState(-1,BitOr($GUI_SHOW,$GUI_DISABLE))
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Assign background to dances for DME.")
-Local $chkMoveToCenter = GUICtrlCreateCheckbox("Move to center when dance",77,501,179,20,-1,-1)
+Local $chkMoveToCenter = GUICtrlCreateCheckbox("Move to center when dance",85,508,179,20,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 GUICtrlSetTip(-1,"When a dance starts, move the active model to the center.")
 Local $btnCancel = GUICtrlCreateButton("Cancel",407,518,100,30,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 Local $btnSave = GUICtrlCreateButton("Save",407,471,100,30,-1,-1)
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
+Local $btnReset = GUICtrlCreateButton("Reset",407,357,100,30,-1,-1)
+GUICtrlSetFont(-1,10,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Reset all settings to default values.")
 
 
 
@@ -91,7 +94,7 @@ gui_event_resized=
 gui_event_dropped=
 defaultfont=MS Sans Serif
 defaultfontsize=8
-[0x00100222]
+[0x0039067E]
 type=button
 handle=432
 locked=0
@@ -120,7 +123,7 @@ tabpage=0
 iconindex=
 iconlarge=0
 textmode=text
-[0x00C0200C]
+[0x003304D6]
 type=button
 handle=433
 locked=0
@@ -149,7 +152,7 @@ iconindex=
 iconlarge=0
 textmode=text
 order=5
-[0x004F0314]
+[0x00281778]
 type=button
 handle=434
 locked=0
@@ -178,7 +181,7 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x001A030C]
+[0x00EE1700]
 type=radio
 handle=435
 locked=0
@@ -207,7 +210,7 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x0048032C]
+[0x004018DC]
 type=radio
 handle=436
 locked=0
@@ -236,7 +239,7 @@ iconindex=
 iconlarge=0
 textmode=text
 order=11
-[0x002A0334]
+[0x004A03D6]
 type=radio
 handle=437
 locked=0
@@ -265,7 +268,7 @@ iconindex=
 iconlarge=0
 textmode=text
 order=12
-[0x002A1850]
+[0x000F2120]
 type=button
 handle=438
 locked=0
@@ -294,13 +297,13 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00120E54]
+[0x00291588]
 type=checkbox
 handle=439
 locked=0
 resize=
-x=77
-y=501
+x=85
+y=508
 width=179
 height=20
 func=
@@ -323,7 +326,7 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x002B0E52]
+[0x00082186]
 type=button
 handle=440
 locked=0
@@ -352,7 +355,7 @@ iconindex=
 iconlarge=0
 textmode=text
 order=17
-[0x00360420]
+[0x0062181E]
 type=group
 handle=441
 locked=0
@@ -381,7 +384,7 @@ tabpage=0
 iconindex=
 iconlarge=0
 textmode=text
-[0x00681360]
+[0x0047046C]
 type=group
 handle=442
 locked=0
@@ -410,7 +413,7 @@ iconindex=
 iconlarge=0
 textmode=text
 order=6
-[0x00450328]
+[0x00341674]
 type=button
 handle=443
 locked=0
@@ -434,12 +437,12 @@ style=
 exstyle=
 bgcolour=
 code=
-tabpage=0
+tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
 order=7
-[0x00100F56]
+[0x003A03EA]
 type=button
 handle=444
 locked=0
@@ -463,12 +466,12 @@ style=
 exstyle=
 bgcolour=
 code=
-tabpage=0
+tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
 order=8
-[0x00170F58]
+[0x00062244]
 type=button
 handle=445
 locked=0
@@ -497,7 +500,7 @@ iconindex=
 iconlarge=0
 textmode=text
 order=14
-[0x00100F54]
+[0x00252172]
 type=group
 handle=446
 locked=0
@@ -526,7 +529,7 @@ tabpage=0
 iconindex=
 iconlarge=0
 textmode=text
-[0x00100EE4]
+[0x00092184]
 type=radio
 handle=447
 locked=0
@@ -555,7 +558,7 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00131D56]
+[0x003703F8]
 type=radio
 handle=448
 locked=0
@@ -584,7 +587,7 @@ iconindex=
 iconlarge=0
 textmode=text
 order=2
-[0x00230E5E]
+[0x00062240]
 type=group
 handle=449
 locked=0
@@ -613,4 +616,33 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
+[0x00092236]
+type=button
+handle=450
+locked=0
+resize=
+x=407
+y=357
+width=100
+height=30
+func=
+font=Tahoma
+fontsize=10
+fontstyle=400
+fontattribute=0
+tooltip=Reset all settings to default values.
+bgimage=
+textcolour=0x000000
+id=$btnReset
+text=Reset
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+order=19
 #ce

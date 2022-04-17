@@ -2,7 +2,9 @@
 
 
 Func GuiSettings($bNew)
-	Local $guiSettings = GUICreate("Settings",596,485,-1,-1,-1,-1)
+	Local $guiSettings = GUICreate("Settings",538,585,-1,-1,-1,-1)
+	GUISetIcon("Icons\tray.ico")
+	
 	Local $bSaved = False 
 	#include "Settings.isf"
 	Local $sMMD3Path, $sMMD3WorkshopPath, $sDMEPath, $sDMEWorkshopPath
@@ -10,6 +12,7 @@ Func GuiSettings($bNew)
 	; Local $guiSettings, $btnBrowseMMD3,  $btnBrowseMMD3Workshop
 	; Local $btnBrowseDME, $btnBrowseDMEWorkshop, 
 	; Local $radDisable, $radEnableRandom, $radEnableSpecified, $btnAssignMMD3, $btnAssignDME, $chkMoveToCenter
+	; Local $radMMD3, $radDME
 	; Local $btnSave, $btnCancel
 	
 	
@@ -23,6 +26,8 @@ Func GuiSettings($bNew)
 		$sMMD3WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480"
 		$sDMEPath = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMagicEngine"
 		$sDMEWorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1096550"
+		$sControlProg = "MMD3"
+		$sBackgroundShow = "Disable"
 	Else
 		; Have existing settings.
 		$sMMD3Path = RegRead( $gsRegBase, "MMD3Path")
@@ -36,8 +41,13 @@ Func GuiSettings($bNew)
 		
 		; Set the default prog to control
 		$sControlProg = RegRead( $gsRegBase, "ControlProgram" )
+		If @error Then $sControlProg = "MMD3"	; Just in case.
 		
-		
+		If $sControlProg = "MMD3" Then 
+			GUICtrlSetState($radMMD3, $GUI_CHECKED)
+		Else 
+			GUICtrlSetState($radDME, $GUI_CHECKED)
+		EndIf
 		
 		; Set the background options
 		$sBackgroundShow = RegRead( $gsRegBase, "BackgroundShow")
@@ -51,10 +61,15 @@ Func GuiSettings($bNew)
 				GUICtrlSetState( $btnAssignMMD3, $GUI_ENABLE)
 				GUICtrlSetState( $btnAssignDME, $GUI_ENABLE)
 		EndSwitch
+		; Center model when dance option.
 		If RegRead( $gsRegBase, "CenterWhenDance" ) = 1 Then 
 			GUICtrlSetState( $chkMoveToCenter, $GUI_CHECKED )
 		EndIf
+
 	EndIf
+	
+	; Disable the tray clicks
+	TraySetClick(0)
 	
 	; Show the gui
 	GUISetState(@SW_SHOW, $guiSettings)
@@ -66,20 +81,28 @@ Func GuiSettings($bNew)
 				ContinueLoop
 
 			Case $btnBrowseMMD3
-				Local $sExeFile = FileOpenDialog("Locate DesktopMMD3.exe", GetFolderFromPath($sMMD3Path), "Exe File(*.exe)",  $FD_FILEMUSTEXIST, "DesktopMMD3.exe" )
-				If @error Then
-					MsgBox(0, "Error", "Error in locating the exe file. Error:" & @error, 20)
-					ContinueLoop
-				EndIf
+				Local $sExeFile = FileOpenDialog("Locate DesktopMMD3.exe", $sMMD3Path, "Exe File(*.exe)",  $FD_FILEMUSTEXIST, "DesktopMMD3.exe" )
+				If @error Then ContinueLoop
+
 				$sMMD3Path = GetFolderFromPath( $sExeFile )
 
 			Case $btnBrowseMMD3Workshop
-				Local $sPath =  FileSelectFolder("Locate Workshop folder 1480480", "", 0, $sMMD3WorkshopPath )
-				If @error Then 
-					MsgBox(0, "Error", "Error in locating the 1480480 folder. Error:" & @error, 20)
-					ContinueLoop
-				EndIf
+				Local $sPath =  FileSelectFolder("Locate Workshop folder 1480480", $sMMD3WorkshopPath )
+				If @error Then ContinueLoop
+
 				$sMMD3WorkshopPath = $sPath
+				
+			Case $btnBrowseDME
+				Local $sExeFile = FileOpenDialog("Locate DesktopMMD3.exe", $sDMEPath, "Exe File(*.exe)",  $FD_FILEMUSTEXIST, "DesktopMagicEngine.exe" )
+				If @error Then ContinueLoop
+
+				$sDMEPath = GetFolderFromPath( $sExeFile )
+
+			Case $btnBrowseDMEWorkshop
+				Local $sPath =  FileSelectFolder("Locate Workshop folder 1096550", $sDMEWorkshopPath )
+				If @error Then ContinueLoop
+
+				$sDMEWorkshopPath = $sPath
 
 			Case $btnAssignMMD3, $btnAssignDME
 				MsgBox( 0, "Not yet", "This feature is planned but not implemented yet.", 20)
@@ -98,6 +121,33 @@ Func GuiSettings($bNew)
 				GUICtrlSetState( $btnAssignDME, $GUI_ENABLE)
 				$sBackgroundShow = "EnableSpecified"
 			
+			Case $radMMD3
+				$sControlProg = "MMD3"
+				Local $sFile = $sMMD3Path & "\DesktopMMD3.exe"
+				If Not FileExists($sFile) Then 
+					MsgBox( 0, "Error", "DesktopMMD3.exe doesn't exist.", 20)
+					GUICtrlSetState($radMMD3, $GUI_UNCHECKED)
+					ContinueLoop
+				EndIf
+
+			Case $radDME
+				$sControlProg = "DME"
+				Local $sFile = $sDMEPath & "\DesktopMagicEngine.exe"
+				If Not FileExists($sFile) Then 
+					MsgBox( 0, "Error", "DesktopMagicEngine.exe doesn't exist.", 20)
+					GUICtrlSetState($radDME, $GUI_UNCHECKED)
+					ContinueLoop
+				EndIf
+				
+			Case $btnReset
+				GUICtrlSetState( $radDisable, $GUI_CHECKED)
+				GUICtrlSetState( $radMMD3, $GUI_CHECKED)
+				$sMMD3Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3"
+				$sMMD3WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480"
+				$sDMEPath = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMagicEngine"
+				$sDMEWorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1096550"
+				$sControlProg = "MMD3"
+				$sBackgroundShow = "Disable"
 			
 			Case $btnSave
 				; Save all settings.
@@ -106,28 +156,48 @@ Func GuiSettings($bNew)
 	; Local $radDisable, $radEnableRandom, $radEnableSpecified, $btnAssignMMD3, $btnAssignDME, $chkMoveToCenter
 				Local $sRegKey = RegRead( $gsRegBase, "")
 				if @error Then RegWrite( $gsRegBase )	; Simply create the base key
+				
 				; Write paths
 				$gsMMD3Path = $sMMD3Path
 				RegWrite( $gsRegBase, "MMD3Path", "REG_SZ", $gsMMD3Path )
+				$gsMMD3AssetPath = $gsMMD3Path & "\Appdata\Assets"
 				$gsMMD3WorkshopPath = $sMMD3WorkshopPath
 				RegWrite( $gsRegBase, "MMD3WorkshopPath", "REG_SZ", $gsMMD3WorkshopPath )
+				
+				$gsDMEPath = $sDMEPath
+				RegWrite( $gsRegBase, "DMEPath", "REG_SZ", $gsDMEPath )
+				$gsDMEAssetPath = $gsDMEPath & "\Appdata\Assets"
+				$gsDMEWorkshopPath = $sDMEWorkshopPath
+				RegWrite( $gsRegBase, "DMEWorkshopPath", "REG_SZ", $gsDMEWorkshopPath )
+
 				; Dance background setting
 				$gsBackgroundShow =  $sBackgroundShow
 				RegWrite( $gsRegBase, "BackgroundShow", "REG_SZ", $gsBackgroundShow )
 				; Dance center setting
+				
 				If GUICtrlRead( $chkMoveToCenter) =  $GUI_CHECKED Then 
 					RegWrite( $gsRegBase, "CenterWhenDance", "REG_DWORD", 1)
+					$gsCenterWhenDance = 1
 				Else
 					RegWrite( $gsRegBase, "CenterWhenDance", "REG_DWORD", 0)
+					$gsCenterWhenDance = 0
 				EndIf
 				
+				; Default control program.
+				$gsControlProg = $sControlProg
+				RegWrite( $gsRegBase, "ControlProgram", "REG_SZ", $gsControlProg )
+				
+				
 				MsgBox( 0, "Saved", "Settings are saved and effective.", 20)
-				ExitLoop 
 				$bSaved = True 
+				ExitLoop
 			Case $GUI_EVENT_CLOSE, $btnCancel
 				ExitLoop
 		EndSwitch
 	Wend
+	
+	; restore the tray icon functions.
+	TraySetClick(9)
 
 	GUIDelete($guiSettings)
 	Return $bSaved
