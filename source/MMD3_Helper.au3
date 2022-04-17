@@ -13,9 +13,10 @@
 #include <EditConstants.au3>
 #include <WinAPIProc.au3>
 
+opt("MustDeclareVars", 1)
+
 #include "TrayMenuEx.au3"
 
-opt("MustDeclareVars", 1)
 
 #Region Globals Initialization
 
@@ -27,8 +28,8 @@ If AlreadyRunning() Then
    Exit
 EndIf
 
-Global Const $gsCurrentVersion = "v1.0.0"
-Global Const $gsAboutText = "MMD3 Helper " & $gsCurrentVersion & ", written by Philip Wang." _
+Global Const $gsVersion = "v1.0.0"
+Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & ", written by Philip Wang." _
 						   &@CRLF& "Extend the features of the Excellent DesktopMMD3."
 						   
 ; Registry path to save program settings.
@@ -40,25 +41,18 @@ Global $gsDMEPath, $gsDMEAssetPath, $gsDMEWorkshopPath
 Global $gsControlProg, $gsCenterWhenDance, $gsBackgroundShow
 
 Global $ghMMD3, $ghDME, $giMMD3PID, $giDMEPID
-Global $ghHelperHwnd = WinGetTitle( AutoItWinGetTitle(), "")
+Global $ghHelperHwnd = WinGetHandle( AutoItWinGetTitle(), "")
+If Not IsHWnd( $ghHelperHwnd) Then
+	c("type:" & VarGetType($ghHelperHwnd) )
+	ExitC("Not a hwnd.")
+EndIf
+	
 Global $giHelperPID = WinGetProcess($ghHelperHwnd)
 
 Global $aModels[1] = [0]  ; First one is number of models in the array. No model means 0.
 
 ; Load forms below
 #include "Forms\Settings.au3"
-
-
-TraySetIcon("Icons\tray.ico")
-
-Opt("TrayAutoPause", 0)  ; No pause in tray
-Opt("TrayMenuMode", 8)	; turn off auto check of radio item groups
-
-Global Const $gsIconPath = @ScriptDir & "\icons\"
-;~ Local $hIcons[21]	; 20 (0-19) bmps  for the tray menus
-;~ For $i = 0 to 20
-;~ 	$hIcons[$i] = _LoadImage($sIconPath & $i & ".bmp", $IMAGE_BITMAP)
-;~ Next
 
 If Not LoadGlobalSettings() Then
    ; Run the initial settings form.
@@ -100,35 +94,115 @@ Else ; DME
 	EndIf
 EndIf
 
-#EndRegion
+#EndRegion Globals
+
+; Initialize GUI.  ( Update: No main gui, I prefer tray icons.)
+; Global $guiMain = GUICreate("MMD3/DME Helper",1150,850,-1,-1,-1,-1)
+; If @error Then ExitC("Cannot create $guiMain")
+
+; #include "Forms\Main.isf"
+; GUISetState( @SW_SHOW, $guiMain )
+
+#Region Tray Menu Initialize
+TraySetIcon("Icons\tray.ico")
+
+Global Const $gsIconPath = @ScriptDir & "\Icons\"
+Local $hIcons[7]	; 20 (0-19) bmps  for the tray menus
+For $i = 0 to UBound($hIcons)-1
+	$hIcons[$i] = _LoadImage($gsIconPath & $i & ".bmp", $IMAGE_BITMAP)
+Next
+
+; Initialize Tray using TrayMenuEx.au3
+
+; Opt("TrayAutoPause", 0)  ; No pause in tray
+Opt("TrayMenuMode", 3)	; The default tray menu items will not be shown and items are not checked when selected.
+
+Local $iMenuItem = 0
+
+Global $trayTitle = TrayCreateItem("MMD3 / MDE Helper " & $gsVersion )
+; $iMenuItem += 1
+TrayCreateItem("")
+$iMenuItem = 2
+Global $trayMenuModels = TrayCreateMenu("ActiveModel:")	; Active model name.The subitems are all loaded models.
+_TrayMenuAddImage($hIcons[0], $iMenuItem)
+$iMenuItem += 1
+Global $trayMenuCommands = TrayCreateMenu("Model Commands")		; Send common or custom commands to a model.
+_TrayMenuAddImage($hIcons[1], $iMenuItem)
+$iMenuItem += 1
+Global $trayMenuDanceMonitor = TrayCreateMenu("Dance Monitor")	; If a program play sound, active model random dances.
+_TrayMenuAddImage($hIcons[2], $iMenuItem)
+$iMenuItem += 1
+Global $trayMenuDanceBK = TrayCreateMenu("Dance Background") ; Specify dance background, or random, but not from
+_TrayMenuAddImage($hIcons[3], $iMenuItem)
+$iMenuItem += 1
+Global $trayMenuPlayList = TrayCreateMenu("Play List")		; Add / remove / Play the songs in play list.
+_TrayMenuAddImage($hIcons[4], $iMenuItem)
+$iMenuItem += 1
+Global $traySettings = TrayCreateItem("Settings")
+_TrayMenuAddImage($hIcons[5], $iMenuItem)
+$iMenuItem += 1
+TrayCreateItem("")
+$iMenuItem += 1
+Global $trayExit = TrayCreateItem("Exit")
+_TrayMenuAddImage($hIcons[6], $iMenuItem)
+
+; No need for those icons any more
+_IconDestroy($hIcons)
+
+#EndRegion Tray Menu
 
 ; Now do the hooking
 #include "GlobalHook.au3"
-
 InitHook($ghHelperHwnd)
 If @error Then 
-	c("error in initialze hook.")
+	c("error in initialze hook. Error:" & @error)
 	Exit
 EndIf
 
-Global $traySettings = TrayCreateItem("Settings")
+#Region Main Loop
+Local $hTimer1Sec = TimerInit()
 
 while True
-   Local $nMsg = TrayGetMsg()
-   Switch $nMsg
-	  Case 0
-		 ContinueLoop
-	  Case $traySettings
-		  GuiSettings(False)
-
-   EndSwitch
-
+	Local $nTrayMsg = TrayGetMsg()
+	Switch $nTrayMsg
+		Case 0
+			ContinueLoop
+		Case $trayTitle
+			About()
+		Case $traySettings
+			GuiSettings(False)	; Not new settings.
+		Case $trayExit
+			ExitLoop
+	EndSwitch
+	
+	; Check things every second.
+	if TimerDiff($hTimer1Sec)> 1000 Then 
+		CheckEverySecond()
+		$hTimer1Sec = TimerInit()
+	EndIf
 Wend
 
+#EndRegion Main Loop
+
+; Clean up process.
+CleanupHook()
+Exit
+
+#Region Main Functions
+
+Func CheckEverySecond()
+	If Not HookWorks() Then ReHook()
+EndFunc
+
+Func About()
+	MsgBox(0, "About MMD3/DME Helper " & $gsVersion, $gsAboutText )
+EndFunc
+
 Func LoadGlobalSettings()
-	; return: First Run  true/false
-	$gsMMD3Path = RegRead($gsRegBase, "MMD3Path")	; Location of DesktopMMD3.exe
+	; return: Load successful  true/false
+	$gsControlProg = RegRead($gsRegBase, "ControlProgram") ; "MMD3" or "DME"
 	If @error Then Return False
+	$gsMMD3Path = RegRead($gsRegBase, "MMD3Path")	; Location of DesktopMMD3.exe
 	$gsMMD3AssetPath = $gsMMD3Path & "\AppData\Assets" ; Should be MMD3Path\AppData\Assets\
 	$gsMMD3WorkshopPath = RegRead($gsRegBase, "MMD3WorkshopPath") ; Download and installed workshop items path.
 	$gsDMEPath = RegRead($gsRegBase, "DMEPath")
@@ -136,7 +210,7 @@ Func LoadGlobalSettings()
 	$gsDMEWorkshopPath = RegRead($gsRegBase, "DMEWorkshopPath")
 	$gsBackgroundShow = RegRead($gsRegBase, "BackgroundShow") ; Disable, EnableRandom or EnableSpecified
 	$gsCenterWhenDance = RegRead($gsRegBase, "CenterWhenDance") ; 0 or 1
-	$gsControlProg = RegRead($gsRegBase, "ControlProgram") ; "MMD3" or "DME"
+	Return True	; loaded
 EndFunc
 
 Func AlreadyRunning()
@@ -175,3 +249,4 @@ Func ExitC($str)
    c($str)
    Exit
 EndFunc
+#EndRegion

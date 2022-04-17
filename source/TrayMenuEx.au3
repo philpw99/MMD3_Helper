@@ -26,7 +26,7 @@ _GetMenuItemID($hMenu, $itemRelativePos) Returns itemID of a item in menu $hMenu
 #ce
 
 #include <GUIConstants.au3>
-#include <WinAPIInternals.au3>
+; #include <WinAPIInternals.au3>
 #include-once
 
 ; ---------------------------------------------------------------------

@@ -1,97 +1,83 @@
 ; -- Created with ISN Form Studio 2 for ISN AutoIt Studio -- ;
-#include <StaticConstants.au3>
-#include <GUIConstantsEx.au3>
-#include <WindowsConstants.au3>
-#Include <GuiButton.au3>
-#include <GuiListView.au3>
-#include <GuiTab.au3>
-#include <EditConstants.au3>
-#include <ListBoxConstants.au3>
-
-$guiMain = GUICreate("MMD3 Helper",1442,895,-1,-1,-1,-1)
-$tab = GUICtrlCreatetab(769,21,658,864,-1,-1)
+Global $tab = GUICtrlCreatetab(464,8,658,818,-1,-1)
 GuiCtrlSetState(-1,2048)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlCreateTabItem("Song List")
 GUICtrlCreateTabItem("Play List")
+GUICtrlCreateTabItem("Dance Bkg")
+GUICtrlCreateTabItem("Model Bkg")
 GUICtrlCreateTabItem("")
 _GUICtrlTab_SetCurFocus($tab,-1)
-$lbStatus = GUICtrlCreateLabel("Status: MMD3 Not Running.",34,8,690,25,-1,$WS_EX_STATICEDGE)
+Global $lbStatus = GUICtrlCreateLabel("Status: MMD3 Not Running.",32,8,404,25,-1,$WS_EX_STATICEDGE)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetBkColor(-1,"-2")
-GUICtrlCreateButton("Active",400,81,218,43,-1,-1)
+GUICtrlCreateLabel("Loaded Models",38,52,120,19,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetBkColor(-1,"-2")
+Global $lstModels = GUICtrlCreatelist("",31,79,249,186,-1,$WS_EX_CLIENTEDGE)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlCreateLabel("Model  Commands",299,54,133,19,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetBkColor(-1,"-2")
+Global $btnCmdActive = GUICtrlCreateButton("Active",297,81,138,25,-1,-1)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Set the selected model as active. The model will wave at you.")
-GUICtrlCreateButton("Scale",400,140,218,43,-1,-1)
+Global $btnCmdStop = GUICtrlCreateButton("Stop",297,146,138,25,-1,-1)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Set the scale of current model.")
-GUICtrlCreateLabel("Current Models",40,40,120,19,-1,-1)
+GUICtrlSetTip(-1,"Stop all the action with the selected model immediately.")
+Global $btnCmdRandomDance = GUICtrlCreateButton("Random Dance",297,111,139,25,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Start random dancing with the current model.")
+Global $btnCmdGoCenter = GUICtrlCreateButton("Go Center",297,179,138,25,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Set the current model to be in the center of the screen.")
+GUICtrlCreateInput("My Custom Command",32,290,249,173,-1,$WS_EX_CLIENTEDGE)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"This is to send my custom command to MMD3.")
+Global $btnSettings = GUICtrlCreateButton("Settings",295,435,141,25,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"MMD3 Helper Settings.")
+Global $btnCmdList = GUICtrlCreateButton("List",295,290,141,25,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"List of custom commands.")
+Global $btnCmdSend = GUICtrlCreateButton("Send",295,321,141,25,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Send a custom command to the current model.")
+GUICtrlCreateLabel("Messages Log",38,475,104,23,-1,-1)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetBkColor(-1,"-2")
-$lstModels = GUICtrlCreatelist("",33,67,335,312,-1,$WS_EX_CLIENTEDGE)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlCreateLabel("Messages",26,475,144,23,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetBkColor(-1,"-2")
-GUICtrlCreateLabel("Model  Commands",430,50,144,19,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetBkColor(-1,"-2")
-$lbMessages = GUICtrlCreateLabel("Message data",10,500,750,385,-1,$WS_EX_CLIENTEDGE)
+Global $lbMessageLog = GUICtrlCreateLabel("Message data",31,506,401,320,-1,$WS_EX_CLIENTEDGE)
 GUICtrlSetState(-1,BitOr($GUI_SHOW,$GUI_ENABLE,$GUI_NODROPACCEPTED))
 GUICtrlSetFont(-1,10,400,0,"Tahoma")
 GUICtrlSetBkColor(-1,"-2")
-GUICtrlCreateButton("Clear",33,384,137,34,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Clear the list of models.")
-GUICtrlCreateInput("1.0",660,141,63,37,-1,$WS_EX_CLIENTEDGE)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUISwitch($guiMain,_GUICtrlTab_SetCurFocus($tab,0)&GUICtrlRead ($tab, 1))
-GUICtrlCreateButton("Refresh",1285,59,119,35,-1,-1)
+Global $btnAddToPlaylist = GUICtrlCreateButton("Add to Play List",516,46,164,25,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Add the selected songs to the play list.")
+Global $btnRefreshSongList = GUICtrlCreateButton("Refresh",980,46,119,25,-1,-1)
 GUICtrlSetOnEvent(-1,"Bingo")
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Get the song list from MMD3 again.")
-GUICtrlCreateTabItem("")
-GUICtrlCreateButton("Stop",400,198,218,43,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Stop all the action with the selected model immediately.")
-GUICtrlCreateButton("Random Dance",400,254,218,43,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Start random dancing with the current model.")
-GUICtrlCreateButton("Go Center",400,314,218,43,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Set the current model to be in the center of the screen.")
-GUICtrlCreateInput("My Custom Command",29,431,331,27,-1,$WS_EX_CLIENTEDGE)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"This is to send my custom command to MMD3.")
-GUICtrlCreateButton("Send",396,431,218,32,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Send a custom command to the current model.")
-GUISwitch($guiMain,_GUICtrlTab_SetCurFocus($tab,0)&GUICtrlRead ($tab, 1))
-$lvSongs = GUICtrlCreatelistview("",782,105,621,763,-1,$WS_EX_CLIENTEDGE)
+Global $lvSongList = GUICtrlCreatelistview("",477,81,626,722,-1,$WS_EX_CLIENTEDGE)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUISwitch($guiMain,_GUICtrlTab_SetCurFocus($tab,1)&GUICtrlRead ($tab, 1))
-$lvPlayList = GUICtrlCreatelistview("",789,94,621,736,-1,$WS_EX_CLIENTEDGE)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUISwitch($guiMain,_GUICtrlTab_SetCurFocus($tab,0)&GUICtrlRead ($tab, 1))
-GUICtrlCreateButton("Add to Play List",822,63,164,31,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Add the selected songs to the play list.")
-GUISwitch($guiMain,_GUICtrlTab_SetCurFocus($tab,1)&GUICtrlRead ($tab, 1))
-GUICtrlCreateButton("Play",1138,57,116,29,-1,-1)
+Global $btnPlaylistPlay = GUICtrlCreateButton("Play",833,44,116,29,-1,-1)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Start dancing with this play list.")
-GUICtrlCreateButton("Remove",792,833,104,36,-1,-1)
-GUICtrlSetFont(-1,12,400,0,"Tahoma")
-GUICtrlSetTip(-1,"Remove the selected songs from the play list.")
-GUICtrlCreateCheckbox("All Models",1274,61,98,25,-1,-1)
+Global $chkPlaylistAllModels = GUICtrlCreateCheckbox("All Models",969,48,98,25,-1,-1)
 GUICtrlSetImage(-1,@scriptdir&"\"&"Dancing with all models or just active model.")
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetBkColor(-1,"0xFFFFFF")
 GUICtrlSetTip(-1,"Dancing with all loaded models or just the active one.")
-GUICtrlCreateButton("Save",1178,833,108,36,-1,-1)
+Global $lvPlayList = GUICtrlCreatelistview("",484,81,622,690,-1,$WS_EX_CLIENTEDGE)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+Global $btnPlaylistRemove = GUICtrlCreateButton("Remove",484,786,104,28,-1,-1)
+GUICtrlSetFont(-1,12,400,0,"Tahoma")
+GUICtrlSetTip(-1,"Remove the selected songs from the play list.")
+Global $btnPlaylistSave = GUICtrlCreateButton("Save",867,786,108,29,-1,-1)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Save the play list to a file.")
-GUICtrlCreateButton("Load",1311,833,100,36,-1,-1)
+Global $btnPlaylistLoad = GUICtrlCreateButton("Load",1001,786,100,29,-1,-1)
 GUICtrlSetFont(-1,12,400,0,"Tahoma")
 GUICtrlSetTip(-1,"Load a play list from file.")
 _GUICtrlTab_SetCurFocus($tab,0)
@@ -104,10 +90,10 @@ type=tab
 handle=432
 locked=0
 resize=
-x=769
-y=21
+x=464
+y=8
 width=658
-height=864
+height=818
 func=
 font=Tahoma
 fontsize=12
@@ -118,7 +104,7 @@ bgimage=
 textcolour=0x000000
 id=$tab
 text=
-pages=2
+pages=4
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
@@ -129,8 +115,18 @@ iconindex=
 iconlarge=0
 textmode=text
 order=0
-[0x00941F66]
+[0x00340464]
 order=0
+[TABPAGE4]
+page=4
+text=Model Bkg
+textmode=text
+handle=
+[TABPAGE3]
+page=3
+text=Dance Bkg
+textmode=text
+handle=
 [TABPAGE2]
 page=2
 text=Play List
@@ -142,11 +138,11 @@ text=Song List
 textmode=text
 handle=
 [gui]
-Handle_deklaration=default
+Handle_deklaration=global
 Handle_deklaration_const=false
-title=MMD3 Helper
-breite=1442
-hoehe=895
+title=MMD3/DME Helper
+breite=1150
+hoehe=850
 style=-1
 exstyle=-1
 bgcolour=0xF0F0F0
@@ -160,7 +156,7 @@ ypos=-1
 center_gui=true
 title_textmode=normal
 isf_include_once=false
-only_controls_in_isf=false
+only_controls_in_isf=true
 const_modus=variables
 gui_code_in_function=false
 gui_code_in_function_name=
@@ -177,14 +173,14 @@ gui_event_resized=
 gui_event_dropped=
 defaultfont=MS Sans Serif
 defaultfontsize=8
-[0x0009206E]
+[0x01322060]
 type=label
 handle=433
 locked=0
 resize=
-x=34
+x=32
 y=8
-width=690
+width=404
 height=25
 func=
 font=Tahoma
@@ -206,15 +202,15 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x000B2054]
+[0x006B03DE]
 type=button
 handle=434
 locked=0
 resize=
-x=400
+x=297
 y=81
-width=218
-height=43
+width=138
+height=25
 func=
 font=Tahoma
 fontsize=12
@@ -223,54 +219,25 @@ fontattribute=0
 tooltip=Set the selected model as active. The model will wave at you.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnCmdActive
 text=Active
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
 bgcolour=
 code=
-order=2
+order=4
 tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00061F5E]
-type=button
+[0x00501FE8]
+type=label
 handle=435
 locked=0
 resize=
-x=400
-y=140
-width=218
-height=43
-func=
-font=Tahoma
-fontsize=12
-fontstyle=400
-fontattribute=0
-tooltip=Set the scale of current model.
-bgimage=
-textcolour=0x000000
-id=
-text=Scale
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=
-bgcolour=
-code=
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-order=3
-[0x0008201A]
-type=label
-handle=436
-locked=0
-resize=
-x=40
-y=40
+x=38
+y=52
 width=120
 height=19
 func=
@@ -282,26 +249,26 @@ tooltip=
 bgimage=
 textcolour=0x000000
 id=
-text=Current Models
+text=Loaded Models
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
 bgcolour=-2
 code=
-order=4
+order=1
 tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00082016]
+[0x00350340]
 type=listbox
-handle=437
+handle=436
 locked=0
 resize=
-x=33
-y=67
-width=335
-height=312
+x=31
+y=79
+width=249
+height=186
 func=
 font=Tahoma
 fontsize=12
@@ -317,19 +284,19 @@ style=
 exstyle=$WS_EX_CLIENTEDGE
 bgcolour=
 code=
-order=5
+order=2
 tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00092004]
+[0x00CC1FDA]
 type=label
-handle=438
+handle=437
 locked=0
 resize=
-x=26
+x=38
 y=475
-width=144
+width=104
 height=23
 func=
 font=Tahoma
@@ -340,26 +307,26 @@ tooltip=
 bgimage=
 textcolour=0x000000
 id=
-text=Messages
+text=Messages Log
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
 bgcolour=-2
 code=
-order=6
+order=12
 tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x0008200E]
+[0x0109160E]
 type=label
-handle=439
+handle=438
 locked=0
 resize=
-x=10
-y=500
-width=750
-height=385
+x=31
+y=506
+width=401
+height=320
 func=
 font=Tahoma
 fontsize=10
@@ -368,7 +335,7 @@ fontattribute=0
 tooltip=
 bgimage=
 textcolour=0x000000
-id=$lbMessages
+id=$lbMessageLog
 text=Message data
 state=$GUI_SHOW+$GUI_ENABLE+$GUI_NODROPACCEPTED
 style=
@@ -379,15 +346,15 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=8
-[0x00082020]
+order=13
+[0x001E1A1C]
 type=label
-handle=440
+handle=439
 locked=0
 resize=
-x=430
-y=50
-width=144
+x=299
+y=54
+width=133
 height=19
 func=
 font=Tahoma
@@ -404,78 +371,20 @@ style=
 exstyle=
 bgcolour=-2
 code=
-order=8
+order=3
 tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00082034]
+[0x002E0F2C]
 type=button
-handle=441
+handle=440
 locked=0
 resize=
-x=33
-y=384
-width=137
-height=34
-func=
-font=Tahoma
-fontsize=12
-fontstyle=400
-fontattribute=0
-tooltip=Clear the list of models.
-bgimage=
-textcolour=0x000000
-id=
-text=Clear
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=
-bgcolour=
-code=
-order=9
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-[0x000A206C]
-type=input
-handle=442
-locked=0
-resize=
-x=660
-y=141
-width=63
-height=37
-func=
-font=Tahoma
-fontsize=12
-fontstyle=400
-fontattribute=0
-tooltip=
-bgimage=
-textcolour=0x000000
-id=
-text=1.0
-state=$GUI_SHOW+$GUI_ENABLE
-style=
-exstyle=$WS_EX_CLIENTEDGE
-bgcolour=
-code=
-order=10
-tabpage=-1
-iconindex=
-iconlarge=0
-textmode=text
-[0x00082030]
-type=button
-handle=443
-locked=0
-resize=
-x=1285
-y=59
+x=980
+y=46
 width=119
-height=35
+height=25
 func=Bingo
 font=Tahoma
 fontsize=12
@@ -484,27 +393,27 @@ fontattribute=0
 tooltip=Get the song list from MMD3 again.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnRefreshSongList
 text=Refresh
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
 bgcolour=
 code=
-order=12
+order=15
 tabpage=0
 iconindex=
 iconlarge=0
 textmode=text
-[0x00092058]
+[0x00570F7A]
 type=button
-handle=444
+handle=441
 locked=0
 resize=
-x=400
-y=198
-width=218
-height=43
+x=297
+y=146
+width=138
+height=25
 func=
 font=Tahoma
 fontsize=12
@@ -513,7 +422,7 @@ fontattribute=0
 tooltip=Stop all the action with the selected model immediately.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnCmdStop
 text=Stop
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -524,16 +433,16 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=13
-[0x00092052]
+order=5
+[0x028A2020]
 type=button
-handle=445
+handle=442
 locked=0
 resize=
-x=400
-y=254
-width=218
-height=43
+x=297
+y=111
+width=139
+height=25
 func=
 font=Tahoma
 fontsize=12
@@ -542,7 +451,7 @@ fontattribute=0
 tooltip=Start random dancing with the current model.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnCmdRandomDance
 text=Random Dance
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -553,16 +462,16 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=14
-[0x00092078]
+order=6
+[0x00270418]
 type=button
-handle=446
+handle=443
 locked=0
 resize=
-x=400
-y=314
-width=218
-height=43
+x=297
+y=179
+width=138
+height=25
 func=
 font=Tahoma
 fontsize=12
@@ -571,7 +480,7 @@ fontattribute=0
 tooltip=Set the current model to be in the center of the screen.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnCmdGoCenter
 text=Go Center
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -582,16 +491,16 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=15
-[0x0008202C]
+order=7
+[0x000721CA]
 type=input
-handle=447
+handle=444
 locked=0
 resize=
-x=29
-y=431
-width=331
-height=27
+x=32
+y=290
+width=249
+height=173
 func=
 font=Tahoma
 fontsize=12
@@ -607,20 +516,20 @@ style=
 exstyle=$WS_EX_CLIENTEDGE
 bgcolour=
 code=
-order=16
+order=8
 tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-[0x000720CC]
+[0x00800490]
 type=button
-handle=448
+handle=445
 locked=0
 resize=
-x=396
-y=431
-width=218
-height=32
+x=295
+y=321
+width=141
+height=25
 func=
 font=Tahoma
 fontsize=12
@@ -629,7 +538,7 @@ fontattribute=0
 tooltip=Send a custom command to the current model.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnCmdSend
 text=Send
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -640,16 +549,16 @@ tabpage=-1
 iconindex=
 iconlarge=0
 textmode=text
-order=17
-[0x000A2068]
+order=11
+[0x00521682]
 type=listview
-handle=449
+handle=446
 locked=0
 resize=
-x=782
-y=105
-width=621
-height=763
+x=477
+y=81
+width=626
+height=722
 func=
 font=Tahoma
 fontsize=12
@@ -658,27 +567,27 @@ fontattribute=0
 tooltip=
 bgimage=
 textcolour=0x000000
-id=$lvSongs
+id=$lvSongList
 text=
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=$WS_EX_CLIENTEDGE
 bgcolour=
 code=
-order=18
+order=16
 tabpage=0
 iconindex=
 iconlarge=0
 textmode=text
-[0x000A2060]
+[0x00082240]
 type=listview
-handle=450
+handle=447
 locked=0
 resize=
-x=789
-y=94
-width=621
-height=736
+x=484
+y=81
+width=622
+height=690
 func=
 font=Tahoma
 fontsize=12
@@ -698,16 +607,16 @@ tabpage=1
 iconindex=
 iconlarge=0
 textmode=text
-order=20
-[0x00131F4E]
+order=19
+[0x00272172]
 type=button
-handle=451
+handle=448
 locked=0
 resize=
-x=822
-y=63
+x=516
+y=46
 width=164
-height=31
+height=25
 func=
 font=Tahoma
 fontsize=12
@@ -716,27 +625,27 @@ fontattribute=0
 tooltip=Add the selected songs to the play list.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnAddToPlaylist
 text=Add to Play List
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
 bgcolour=
 code=
-order=21
+order=14
 tabpage=0
 iconindex=
 iconlarge=0
 textmode=text
-[0x0008200C]
+[0x00072244]
 type=button
-handle=452
+handle=449
 locked=0
 resize=
-x=792
-y=833
+x=484
+y=786
 width=104
-height=36
+height=28
 func=
 font=Tahoma
 fontsize=12
@@ -745,7 +654,7 @@ fontattribute=0
 tooltip=Remove the selected songs from the play list.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnPlaylistRemove
 text=Remove
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -756,14 +665,14 @@ tabpage=1
 iconindex=
 iconlarge=0
 textmode=text
-order=22
-[0x000B1ED6]
+order=20
+[0x003B03EA]
 type=button
-handle=453
+handle=450
 locked=0
 resize=
-x=1138
-y=57
+x=833
+y=44
 width=116
 height=29
 func=
@@ -774,7 +683,7 @@ fontattribute=0
 tooltip=Start dancing with this play list.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnPlaylistPlay
 text=Play
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -785,14 +694,14 @@ tabpage=1
 iconindex=
 iconlarge=0
 textmode=text
-order=22
-[0x00131FFC]
+order=17
+[0x00351674]
 type=checkbox
-handle=454
+handle=451
 locked=0
 resize=
-x=1274
-y=61
+x=969
+y=48
 width=98
 height=25
 func=
@@ -803,27 +712,27 @@ fontattribute=0
 tooltip=Dancing with all loaded models or just the active one.
 bgimage=Dancing with all models or just active model.
 textcolour=0x000000
-id=
+id=$chkPlaylistAllModels
 text=All Models
 state=$GUI_SHOW+$GUI_ENABLE
 style=
 exstyle=
 bgcolour=0xFFFFFF
 code=
-order=23
+order=18
 tabpage=1
 iconindex=
 iconlarge=0
 textmode=text
-[0x00152062]
+[0x0048046C]
 type=button
-handle=455
+handle=452
 locked=0
 resize=
-x=1178
-y=833
+x=867
+y=786
 width=108
-height=36
+height=29
 func=
 font=Tahoma
 fontsize=12
@@ -832,7 +741,7 @@ fontattribute=0
 tooltip=Save the play list to a file.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnPlaylistSave
 text=Save
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -843,16 +752,16 @@ tabpage=1
 iconindex=
 iconlarge=0
 textmode=text
-order=24
-[0x0008201C]
+order=21
+[0x0063181E]
 type=button
-handle=456
+handle=453
 locked=0
 resize=
-x=1311
-y=833
+x=1001
+y=786
 width=100
-height=36
+height=29
 func=
 font=Tahoma
 fontsize=12
@@ -861,7 +770,7 @@ fontattribute=0
 tooltip=Load a play list from file.
 bgimage=
 textcolour=0x000000
-id=
+id=$btnPlaylistLoad
 text=Load
 state=$GUI_SHOW+$GUI_ENABLE
 style=
@@ -872,5 +781,63 @@ tabpage=1
 iconindex=
 iconlarge=0
 textmode=text
-order=25
+order=22
+[0x00092186]
+type=button
+handle=454
+locked=0
+resize=
+x=295
+y=290
+width=141
+height=25
+func=
+font=Tahoma
+fontsize=12
+fontstyle=400
+fontattribute=0
+tooltip=List of custom commands.
+bgimage=
+textcolour=0x000000
+id=$btnCmdList
+text=List
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+order=10
+[0x002A1588]
+type=button
+handle=455
+locked=0
+resize=
+x=295
+y=435
+width=141
+height=25
+func=
+font=Tahoma
+fontsize=12
+fontstyle=400
+fontattribute=0
+tooltip=MMD3 Helper Settings.
+bgimage=
+textcolour=0x000000
+id=$btnSettings
+text=Settings
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=
+code=
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+order=9
 #ce

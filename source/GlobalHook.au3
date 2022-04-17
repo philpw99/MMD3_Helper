@@ -1,7 +1,7 @@
 #Include <WinAPI.au3>
 #include <SendMessage.au3>
 
-OnAutoItExitRegister("CleanupHook")
+; OnAutoItExitRegister("CleanupHook")
 Global $ghHookDLL = 0, $gHookHandleCallWNDProc, $CALLWNDPROC_MSG, $TEST_MSG
 Global $gbHookTesting = False, $gbHookWorks, $ghHookHandle
 Global $gaClientResponse[3]	; For getting replies after sending a wm_copydata.
@@ -20,7 +20,7 @@ Global const $tagCOPYDATASTRUCT = 'ulong_ptr dwData;dword cbData;ptr lpData'
 
 Func InitHook( $hGui )
 	$ghHookHandle = SetCallWNDProcHook($hGui,"MsgHookProc", $WM_COPYDATA, 0 )	; Monitor all process's wm_copydata
-	If @error Then Return SetError(1)
+	If @error Then Return SetError(@error)
 EndFunc
 
 ; $sProg can be "MMD3", "MMD3Core","DME" or "DMECore"
@@ -50,7 +50,7 @@ Func SendCommand($hFromWnd, $hToWnd, $sDataToSend, $iData = 1)
 	; Wait for response for 0.5 seconds
 	While TimerDiff($hTimer) < 500
 	  If $gaClientResponse[0] Then
-		 c( "Client response-> Data:" & $aClientResponse[1] & " String:" & $aClientResponse[2])
+		 c( "Client response-> Data:" & $gaClientResponse[1] & " String:" & $gaClientResponse[2])
 		 Return $gaClientResponse[2]
 	  EndIf
 	  Sleep(100)
@@ -84,19 +84,19 @@ Func MsgHookProc($hWnd,$Msg,$wParam,$lParam)
 		Local $sMessage
 		If $gsControlProg = "MMD3" Then 
 			If $hProc = $ghMMD3 Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, True) )  ; Using wchar
+				$sMessage = GetWMCopyData($iPID, $lParamMsg, True)  ; Using wchar
 				ProcessMessage( "MMD3Core", $sMessage )
 			Elseif Number($iPID) = $giMMD3PID Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, False) )  ; Using char
+				$sMessage = GetWMCopyData($iPID, $lParamMsg, False)  ; Using char
 				ProcessMessage( "MMD3", $sMessage )
 			EndIf
 			
 		Elseif $gsControlProg = "DME" Then 
 			If $hProc = $ghDME Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, True) )  ; Using wchar
+				$sMessage = GetWMCopyData($iPID, $lParamMsg, True)   ; Using wchar
 				ProcessMessage( "DMECore", $sMessage )
 			Elseif Number($iPID) = $giDMEPID Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, False) )  ; Using char
+				$sMessage = GetWMCopyData($iPID, $lParamMsg, False)   ; Using char
 				ProcessMessage( "DME", $sMessage )
 			EndIf
 		EndIf
@@ -115,9 +115,9 @@ Func _WM_CopyDataClient($hWnd, $iMsg, $wParam, $lParam)
 	  $sString = $tStr.str
 	  ; c("Receive Data:" & $sString )
    EndIf
-   $aClientResponse[0] = True
-   $aClientResponse[1] = $tData.dwData
-   $aClientResponse[2] = $sString
+   $gaClientResponse[0] = True
+   $gaClientResponse[1] = $tData.dwData
+   $gaClientResponse[2] = $sString
 
    Return 1
 EndFunc
@@ -129,27 +129,30 @@ EndFunc
 ; $hHwndFilter: Default to be 0 (all), can set to a number so only monitor a process with that winhandle.
 
 Func SetCallWNDProcHook($hGuiHwnd, $MsgFunction, $nMsgFilter=0, $hHwndFilter=0 )
+	if Not IsHWnd($hGuiHwnd) Then Return SetError(1,0,0)
+	if Not $ghHookDLL Then $ghHookDLL = DllOpen("Hook32.dll")
+	if @error Then
+		c("Load dll error. Error :" & @error)
+		Return SetError(1)
+	EndIf
 
-   if Not IsHWnd($hGuiHwnd) Then Return SetError(1,0,0)
-   if Not $ghHookDLL Then $ghHookDLL = DllOpen("Hook32.dll")
+	; Receive message from the dll then send it to $MsgFunction
+	Local $aRet = DllCall( $ghHookDLL, "UINT", "_MsgQueueID@0")
+	If @error Then Return SetError(2)
+	$CALLWNDPROC_MSG = $aRet[0]
+	if Not $CALLWNDPROC_MSG Or Not GUIRegisterMsg($CALLWNDPROC_MSG,$MsgFunction) Then Return SetError(3,0,0)
+	c( "msg queue:" & $CALLWNDPROC_MSG )
 
-   ; Receive message from the dll then send it to $MsgFunction
-   Local $aRet = DllCall( $ghHookDLL, "UINT", "_MsgQueueID@0")
-   If @error Then Return SetError(1)
-   $CALLWNDPROC_MSG = $aRet[0]
-   if Not $CALLWNDPROC_MSG Or Not GUIRegisterMsg($CALLWNDPROC_MSG,$MsgFunction) Then Return SetError(3,0,0)
-   c( "msg queue:" & $CALLWNDPROC_MSG )
+	$aRet = DllCall( $ghHookDLL, "UINT", "_TestMsgID@0")
+	$TEST_MSG = $aRet[0]
+	c( "Test msg queue:" & $TEST_MSG )
 
-   $aRet = DllCall( $ghHookDLL, "UINT", "_TestMsgID@0")
-   $TEST_MSG = $aRet[0]
-   c( "Test msg queue:" & $TEST_MSG )
+	$aRet = DllCall($ghHookDLL,"handle","_DllWindowsHookExW@12", "HWND", $hGuiHwnd, "UINT", $nMsgFilter, "HWND", $hHwndFilter )
+	If @error Or Not $aRet[0] Then Return SetError(5,0,0)
+	$gHookHandleCallWNDProc = $aRet[0]
+	c( "HookHandle:" & $gHookHandleCallWNDProc )
 
-   $aRet = DllCall($ghHookDLL,"handle","_DllWindowsHookExW@12", "HWND", $hGuiHwnd, "UINT", $nMsgFilter, "HWND", $hHwndFilter )
-   If @error Or Not $aRet[0] Then Return SetError(5,0,0)
-   $gHookHandleCallWNDProc = $aRet[0]
-   c( "HookHandle:" & $gHookHandleCallWNDProc )
-
-   Return SetError(0,0,$gHookHandleCallWNDProc)
+	Return SetError(0,0,$gHookHandleCallWNDProc)
 
 EndFunc
 
@@ -189,16 +192,14 @@ Func GetWMCopyData($ProcessID,$LPARAMA, $bWchar)
    ; c( "Data copied: " & $iRead)
    ; c( "cbData:" & $LparamaStruct.cbData & " lpData:" & $LparamaStruct.lpData )
    ; Set the buffer to copy
-   $sBuffer = DllStructCreate( ($bWchar? "wchar[" : "char[") & $LparamaStruct.cbData & "]" )
-   $pBuffer = DllStructGetPtr( $sBuffer )
+   Local $sBuffer = DllStructCreate( ($bWchar? "wchar[" : "char[") & $LparamaStruct.cbData & "]" )
+   Local $pBuffer = DllStructGetPtr( $sBuffer )
    _WinAPI_ReadProcessMemory( $hProcess, $LparamaStruct.lpData, $pBuffer, $LparamaStruct.cbData, $iRead )
    ; c( "Data copied: " & $iRead)
    ; c( "Data string: " & DllStructGetData( $sBuffer, 1) )
 
    Return DllStructGetData( $sBuffer, 1)
 EndFunc
-
-
 
 Func RegisterWindowMessage($lpString)
    Local $aRet = DllCall("User32.dll","int","RegisterWindowMessageW","WSTR",$lpString)
