@@ -57,7 +57,7 @@ Global Enum $MODEL_NO, $MODEL_NAME, $MODEL_OBJ
 Global $gaModels[0][3]		; Models loaded in memory.
 
 Global Enum $MODEL_ITEM_HANDLE, $MODEL_ITEM_NAME
-Global $gaModelMenuItems[1][2]		; Menu Item Handle and name, first one is always "Model List"
+Global $gaModelMenuItems[0][2]		; Menu Item Handle and name, first one is always "Model List"
 Global $giActiveModelNo = 0		; 0 means active model is unknown.
 
 
@@ -129,8 +129,9 @@ $iMenuItem = 3
 
 Global $trayMenuModels = TrayCreateMenu("ActiveModel:")	; Active model name.The subitems are all loaded models.
 _TrayMenuAddImage($hIcons[0], $iMenuItem)
-$gaModelMenuItems[0][$MODEL_ITEM_HANDLE] = TrayCreateItem("Model List", $trayMenuModels)
-$gaModelMenuItems[0][$MODEL_ITEM_NAME] = "Model List"	; First item text
+TrayCreateItem("Model List", $trayMenuModels)
+TrayCreateItem("", $trayMenuModels)
+
 RefreshModelListMenu()	; Add the model list by $aModelItems
 $iMenuItem += 1
 
@@ -282,9 +283,11 @@ Func SetActiveModelFromMessage($iNumber)
 	If Not IsInt($iNumber) Then Return
 	If $iNumber = $giActiveModelNo Then Return
 	Local $iCount = UBound($gaModels), $bFound = False 
+	Local $sName
 	If $iCount = 0 Then
 		; No models loaded, need to add it.
 		AddModel($iNumber)
+		TrayItemSetText($trayMenuModels, "Active Model: Model " & $iNumber)
 		RefreshModelListMenu()
 		Return
 	EndIf
@@ -293,6 +296,7 @@ Func SetActiveModelFromMessage($iNumber)
 			; Found a match
 			$giActiveModelNo = $iNumber
 			$bFound = True 
+			TrayItemSetText($trayMenuModels, "Active Model: " & $gaModels[$i][$MODEL_NAME] )
 			ExitLoop
 		EndIf
 	Next
@@ -302,6 +306,7 @@ Func SetActiveModelFromMessage($iNumber)
 	Else 
 		; Not found, need to add it to the array
 		AddModel($iNumber)
+		TrayItemSetText($trayMenuModels, "Active Model: Model " & $iNumber)
 	EndIf
 	RefreshModelListMenu()
 	; There is no need to do the waving.
@@ -338,21 +343,25 @@ EndFunc
 Func RefreshModelListMenu()
 	Local $iCount = UBound($gaModelMenuItems)
 	; The first row is always "Model List:"
-	If $iCount > 1 Then 	; Has items
-		For $i = 1 to $iCount-1	; Delete all the existing items.
+	If $iCount > 0 Then 	; Has items
+		For $i = 0 to $iCount-1	; Delete all the existing items.
 			TrayItemDelete($gaModelMenuItems[$i][$MODEL_ITEM_HANDLE])
 		Next
 	EndIf
+	
 	$iCount = UBound($gaModels)
 	if $iCount > 0 Then
-		ReDim $gaModelMenuItems[$iCount + 1][2]
+		ReDim $gaModelMenuItems[$iCount][2]
 		For $i = 0 to $iCount-1
 			; Add tray menu items
-			$gaModelMenuItems[$i+1][$MODEL_ITEM_HANDLE] = TrayCreateItem( $gaModels[$i][$MODEL_NAME], $trayMenuModels, $TRAY_ITEM_RADIO)
+			$gaModelMenuItems[$i][$MODEL_ITEM_HANDLE] = TrayCreateItem( $gaModels[$i][$MODEL_NAME], $trayMenuModels, -1, $TRAY_ITEM_RADIO)
 			If $gaModels[$i][$MODEL_NO] = $giActiveModelNo Then									; If the active model number matches
-				TrayItemSetState($gaModelMenuItems[$i+1][$MODEL_ITEM_HANDLE], $TRAY_CHECKED)	; Set it to be checked.
+				TrayItemSetState($gaModelMenuItems[$i][$MODEL_ITEM_HANDLE], $TRAY_CHECKED)	; Set it to be checked.
+				TrayItemSetText($trayMenuModels, "Active Model: " & $gaModels[$i][$MODEL_NAME])
 			EndIf
 		Next
+	Else 
+		TrayItemSetText($trayMenuModels, "Active Model: None")
 	EndIf
 EndFunc
 
