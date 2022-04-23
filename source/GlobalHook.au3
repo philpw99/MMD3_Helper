@@ -23,11 +23,7 @@ Func InitHook( $hGui )
 	If @error Then Return SetError(@error)
 EndFunc
 
-; $sProg can be "MMD3", "MMD3Core","DME" or "DMECore"
-; $sMessage is the text they received.
-Func ProcessMessage($sProg, $sMessage)
-	c( $sProg & " msg: " & $sMessage )
-EndFunc
+
 
 ; Function to send a wm_copydata text to a window by handle. $iData is optional
 ; Because both DMECore and MMD3Core use wchar, so no need to set the char option.
@@ -61,23 +57,35 @@ EndFunc
 
 ; This is the function the DLL will call when a message is intercepted.
 Func MsgHookProc($hWnd,$Msg,$wParam,$lParam)
-   ; wParam is the process id. lParam is the pointer to the data.
-   ; example of use:  Global $hHook = SetCallWNDProcHook($GuiHwnd,"MsgHookProc")
-   Local $iPID = $wParam
-   Local $MSG_Struct = Read_Lparama_FromProcessMemory($Msg,$iPID,$lParam)
-   If @error Then Return	; Cannot set error for it.
+	; wParam is the process id. lParam is the pointer to the data.
+	; example of use:  Global $hHook = SetCallWNDProcHook($GuiHwnd,"MsgHookProc")
+	Local $iPID = $wParam
+	Local $MSG_Struct = Read_Lparama_FromProcessMemory($Msg,$iPID,$lParam)
+	If @error Then Return	; Cannot set error for it.
 
-   Local $hProc = DllStructGetData($MSG_Struct ,4)	; Get the message's win handle.
-   ; if $hProc <> $hProg Then Return 0
-   Local $iMsg = DllStructGetData($MSG_Struct ,3)	; Get the message's WM number
-   Local $wParamMsg = DllStructGetData($MSG_Struct ,2)  ; Get the message's wParam
-   Local $lParamMsg = DllStructGetData($MSG_Struct ,1)  ; Get the message's lParam
+	Local $hProc = DllStructGetData($MSG_Struct ,4)	; Get the message's win handle.
+	; Filter out the messages.
+ 	If $gsControlProg = "MMD3" Then 
+ 		If $hProc <> $ghMMD3 And $hProc <> $guiDummy And Number($iPID) <> $giMMD3PID Then Return 0
+ 	Else ; DME
+ 		If $hProc <> $ghDME And $hProc <> $guiDummy And Number($iPID) <> $giDMEPID Then Return 0
+ 	EndIf
 
-   ; For testing messages.
-   if $gbHookTesting And $iMsg = $Test_MSG Then
-	  $gbHookWorks = True
-	  Return 0
-   EndIf
+	; if $hProc <> $hProg Then Return 0
+	Local $iMsg = DllStructGetData($MSG_Struct ,3)	; Get the message's WM number
+	Local $wParamMsg = DllStructGetData($MSG_Struct ,2)  ; Get the message's wParam
+	Local $lParamMsg = DllStructGetData($MSG_Struct ,1)  ; Get the message's lParam
+	
+
+	If $hProc <> $guiDummy Then 
+		c( "Message from Hwnd:" & $hProc & " t:" & WinGetTitle($hProc) & " PID:" & $iPID & " WM:" & $iMsg & " wParam:" & $wParamMsg )
+	EndIf 
+	
+	; For testing messages.
+	if $gbHookTesting And $iMsg = $Test_MSG And $wParamMsg = 99999 Then
+		$gbHookWorks = True
+		Return 0
+	EndIf
 
 	If $iMsg = $WM_COPYDATA Then
 		; Read WM_CopyData

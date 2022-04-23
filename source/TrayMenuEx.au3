@@ -116,7 +116,8 @@ Func _LoadImage($imagePathName, $imageType)
 												           "int", 0, _
 												           "int", 0, _
 												           "int", BitOR($LR_LOADFROMFILE, $LR_LOADMAP3DCOLORS))
-	; TODO: Consider LR_LOADTRANSPARENT, LR_SHARED
+
+ 	; TODO: Consider LR_LOADTRANSPARENT, LR_SHARED
 	if $Debug AND $hRet[0] = 0 Then ConsoleWrite($ModuleName & _
 					" ERROR: _LoadImage($imagePathName:=" & _
 					$imagePathName & ", $imageType:="& $imageType & _
