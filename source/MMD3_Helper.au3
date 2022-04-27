@@ -44,8 +44,9 @@ Global $gsDMEPath, $gsDMEAssetPath, $gsDMEWorkshopPath
 Global $gsControlProg, $giCenterWhenDance, $gsBackgroundShow
 Global $giActiveMonitor
 Global $giDanceWithProgram, $gsDanceMonitorProgram, $giDanceWithBackground
+Global $ghMMD3, $ghDME, $giMMD3PID, $giDMEPID, $ghMMD3Prog, $ghDMEProg
 
-Global $ghMMD3, $ghDME, $giMMD3PID, $giDMEPID
+
 Global $ghHelperHwnd = WinGetHandle( AutoItWinGetTitle(), "")
 c ( "Helper handle:" & $ghHelperHwnd )
 Global $giHelperPID = WinGetProcess($ghHelperHwnd)
@@ -192,6 +193,13 @@ while True
 		Case $trayExit
 			ExitLoop
 	EndSwitch
+	; Check model list menu
+	For $i = 0 to UBound($gaModelMenuItems)-1
+		If $nTrayMsg = $gaModelMenuItems[$i][$MODEL_ITEM_HANDLE] Then 
+			; choose the model, it will be active.
+			SetActiveModelFromMenu($gaModels[$i][$MODEL_NO])
+		EndIf
+	Next
 	
 	; Check things every second.
 	if TimerDiff($hTimer1Sec)> 1000 Then 
@@ -316,9 +324,9 @@ Func SetActiveModelFromMenu($iNumber)
 	If Not IsInt($iNumber) Then Return SetError(1)
 	$giActiveModelNo = $iNumber
 	If $gsControlProg = "MMD3" Then
-		SendCommand( $ghHelperHwnd, $ghMMD3, "model" & $iNumber & ":active" )
+		SendCommand( $ghHelperHwnd, $ghMMD3, "model" & $iNumber & ".active" )
 	Else
-		SendCommand( $ghHelperHwnd, $ghDME, "model" & $iNumber & ":active" )
+		SendCommand( $ghHelperHwnd, $ghDME, "model" & $iNumber & ".active" )
 	EndIf
 EndFunc
 
@@ -500,7 +508,7 @@ Func SetHandleAndPID()
 			EndIf 
 		EndIf
 	Else ; DME
-		Global $ghDME = WinGetHandle( "DMMDCore", "")
+		$ghDME = WinGetHandle( "DMMDCore", "")
 		If @error Then ; Program is not running
 			$bProgRunning = False
 		Else 

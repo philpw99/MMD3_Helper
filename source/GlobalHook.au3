@@ -27,31 +27,37 @@ EndFunc
 
 ; Function to send a wm_copydata text to a window by handle. $iData is optional
 ; Because both DMECore and MMD3Core use wchar, so no need to set the char option.
-Func SendCommand($hFromWnd, $hToWnd, $sDataToSend, $iData = 1)
+
+Func SendCommand($hFromWnd, $hToWnd, $sDataToSend, $iData = 1, $bWchar = True )
 	Local $tData = DllStructCreate($tagCOPYDATASTRUCT)
 	Local $iLen = StringLen($sDataToSend)
 	If $iLen Then
-	  $tData.cbData = ($iLen + 1)*2  ; wchar is 16bit.
-	  Local $tStr = DllStructCreate('wchar str[' & $tData.cbData & ']')
-	  $tStr.str = $sDataToSend
-	  $tData.lpData = DllStructGetPtr($tStr)
+		If $bWchar Then ; 16bit wchar
+			$tData.cbData = ($iLen + 1)*2  ; wchar is 16bit.
+			Local $tStr = DllStructCreate('wchar str[' & $tData.cbData & ']')
+		Else			; 8bit char
+			$tData.cbData = $iLen + 1  ; char is 8bit.
+			Local $tStr = DllStructCreate('char str[' & $tData.cbData & ']')
+		EndIf 
+		$tStr.str = $sDataToSend
+		$tData.lpData = DllStructGetPtr($tStr)
 	EndIf
 	$tData.dwData = $iData
 	; c("Sending From " & $hFromWnd & " To " & $hToWnd & " with Data " & $iData & " and String " & $sDataToSend)
 	
-	$gaClientResponse[0] = False 
+	; $gaClientResponse[0] = False 
 	_SendMessage($hToWnd, $WM_COPYDATA, $hFromWnd, DllStructGetPtr($tData))
 
-	Local $hTimer = TimerInit()
-	; Wait for response for 0.5 seconds
-	While TimerDiff($hTimer) < 500
-	  If $gaClientResponse[0] Then
-		 c( "Client response-> Data:" & $gaClientResponse[1] & " String:" & $gaClientResponse[2])
-		 Return $gaClientResponse[2]
-	  EndIf
-	  Sleep(100)
-	WEnd
-	c("No data returned.")
+;~ 	Local $hTimer = TimerInit()
+;~ 	; Wait for response for 0.5 seconds
+;~ 	While TimerDiff($hTimer) < 500
+;~ 	  If $gaClientResponse[0] Then
+;~ 		 c( "Client response-> Data:" & $gaClientResponse[1] & " String:" & $gaClientResponse[2])
+;~ 		 Return $gaClientResponse[2]
+;~ 	  EndIf
+;~ 	  Sleep(100)
+;~ 	WEnd
+;~ 	c("No data returned.")
 EndFunc
 
 
@@ -96,6 +102,7 @@ Func MsgHookProc($hWnd,$Msg,$wParam,$lParam)
 				ProcessMessage( "MMD3Core", $sMessage )
 			Elseif Number($iPID) = $giMMD3PID Then 
 				$sMessage = GetWMCopyData($iPID, $lParamMsg, False)  ; Using char
+				$ghMMD3Prog = $hProc	; Got the MMD3 Prog control handle
 				ProcessMessage( "MMD3", $sMessage )
 			EndIf
 			
@@ -105,6 +112,7 @@ Func MsgHookProc($hWnd,$Msg,$wParam,$lParam)
 				ProcessMessage( "DMECore", $sMessage )
 			Elseif Number($iPID) = $giDMEPID Then 
 				$sMessage = GetWMCopyData($iPID, $lParamMsg, False)   ; Using char
+				$ghDMEProg = $hProc
 				ProcessMessage( "DME", $sMessage )
 			EndIf
 		EndIf
