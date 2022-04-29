@@ -1,0 +1,10 @@
+﻿{
+  "name":"Confetti Rainbow Down",
+  "kind":"screen",
+  "src":"confettifountainrainbow.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,4,-15",
+  "rotation":"90,0,0",
+  "ec":true
+}
