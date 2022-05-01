@@ -33,7 +33,7 @@ If AlreadyRunning() Then
    Exit
 EndIf
 
-Global Const $gsVersion = "v1.0.1"
+Global Const $gsVersion = "v1.0.2"
 Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & ", written by Philip Wang." _
 						   &@CRLF& "Extend the features of the Excellent DesktopMagicEngine, DesktopMMD3 and DesktopMMD4."
 
@@ -307,7 +307,7 @@ while True
 	; Check $gsDanceExtra
 	If $gsDanceExtra <> "" Then
 		If $gsDanceExtra = "STOP" Then
-			StopDanceExtra()
+			StopDanceExtra(False)	; Slow fade out
 		ElseIf $gsDanceExtra = "RANDOM" Then
 			; Start a random background/effct $gaBackgroundList, $gaEffectList
 			If $giDanceRandomBackground = 1 Then
@@ -319,8 +319,13 @@ while True
 		Else
 			c("DanceExtra:" & $gsDanceExtra & "|" )
 			; Start a new extra
+			; Save the Extra string first
+			
 			if $gbDanceExtraPlaying Then
-				StopDanceExtra()
+				Local $sExtra = $gsDanceExtra
+				StopDanceExtra(True)	; Fast switch.
+				; Restore the extra
+				$gsDanceExtra = $sExtra
 			EndIf
 			StartDanceExtra()
 		EndIf
@@ -342,7 +347,7 @@ while True
 		if TimerDiff($ghDanceTimer) > $gfDanceTime Then
 			; Times up for this item
 			If $giDanceItem+1 >= UBound($gaDanceData) Then
-				StopDanceExtra()
+				StopDanceExtra(False)	; Slow fade out
 			Else
 				; Next item in extra.json
 				StartDanceNext()
@@ -382,11 +387,11 @@ Func StartDanceNext()
 	$giDanceItem += 1
 	If $giDanceItem >= UBound($gaDanceData) Then
 		; It should have been stopped. So here is just in case.
-		StopDanceExtra()
+		StopDanceExtra(True)	; fast stop
 		Return Error(1, @ScriptLineNumber)
 	EndIf
 
-
+	c( "Playing dance:" & $giDanceItem )
 	Local $oDance = $gaDanceData[$giDanceItem]
 	If Not IsObj($oDance) Then Return Error(1, @ScriptLineNumber)
 
@@ -399,16 +404,7 @@ Func StartDanceNext()
 		; It's empty. Keep the existing background. This item might just want to change the effect.
 	Else
 		Local $sPicFile = $gsDancePath & "\" & $oDance.Item("Background")
-
-		; First delete the existing pic control
-		GUICtrlDelete( $picBackground )
-		; Create it again to get the dimension of the picture
-		$picBackground = GUICtrlCreatePic($sPicFile, 0, 0, 0, 0)
-		Local $aDimension = ControlGetPos( $guiDummy, "", $picBackground)	; Get the picture size
-		Local $aSize = CalcBackgroundPos($aDimension[2], $aDimension[3])
-
-		; Now set the position of pic control, GUI should have set on the full work area.
-		GUICtrlSetPos($picBackground, $aSize[0], $aSize[1], $aSize[2], $aSize[3])
+		_GUICtrlStatic_SetPicture( $picBackground, $sPicFile)
 	EndIf
 
 	If $oDance.Item("Effect") = "" Then
@@ -448,7 +444,7 @@ Func ShowEffect($sEffectFolder)
 	SendCommand( $ghHelperHwnd, $ghMMD, $sEffectString )
 EndFunc
 
-Func StopDanceExtra()
+Func StopDanceExtra($bFast = False)
 	$gbDanceExtraPlaying = False
 	$gsDanceExtra = ""
 	$gaDanceData = ""
@@ -457,7 +453,7 @@ Func StopDanceExtra()
 	$gfDanceTime = 0
 
 	SendCommand( $ghHelperHwnd, $ghMMD, "effect.remove" )
-	HideBackground()	; It will take a while for this to finish. So it's the last thing to do.
+	HideBackground($bFast)	; It will take a while for this to finish. So it's the last thing to do.
 	; Reset all the dance data.
 EndFunc
 
@@ -767,6 +763,7 @@ Func SwitchBackground( $sBgFile)
 	; Now set the position of pic control, GUI should have set on the full work area.
 	; GUICtrlSetPos($picBackground, $aSize[0], $aSize[1], $aSize[2], $aSize[3])
 	; GUICtrlSetImage( $picBackground, $sBgFile )
+	
 	_GUICtrlStatic_SetPicture($picBackground, $sBgFile)
 	If @error Then Return Error(1, @ScriptLineNumber)
 
@@ -861,7 +858,9 @@ Func _GUICtrlStatic_SetPicture($Control, $File, $KeepRatio = False)
 
     Local $hBitmap = _GDIPlus_BitmapCreateHBITMAPFromBitmap($hResizedImage,0x00000000)
     If NOT IsHwnd($Control) Then $Control = GUICtrlGetHandle($Control)
-
+	
+	
+	
     Local $oldBitmap = _SendMessage($Control,$STM_SETIMAGE,$IMAGE_BITMAP,$hBitmap,0,"wparam","lparam","hwnd")
     IF $oldBitmap <> 0 Then
         _WinAPI_DeleteObject($oldBitmap)
@@ -894,14 +893,16 @@ Func SetBackgroundRect()
 	; $picBackground = GUICtrlSetPos( $picBackground, 0, 0, $gaWorkRect[$MON_WIDTH], $gaWorkRect[$MON_HEIGHT] )
 EndFunc
 
-Func HideBackground()
+Func HideBackground($bFast = False)
 	; Fade out.
-	For $i = 250 to 0 Step -25
-		WinSetTrans($guiDummy, "", $i)
-		Sleep(100)
-	Next
-	GUISetState( @SW_HIDE, $guiDummy )
-	GUICtrlSetImage( $picBackground, @ScriptDir & "\Images\empty.jpg" )
+	If Not $bFast Then 
+		For $i = 250 to 0 Step -25
+			WinSetTrans($guiDummy, "", $i)
+			Sleep(100)
+		Next
+	EndIf 
+  	GUISetState( @SW_HIDE, $guiDummy )
+	; GUICtrlSetImage( $picBackground, @ScriptDir & "\Images\empty.jpg" )
 	$gbBackgroundOn = False
 EndFunc
 
