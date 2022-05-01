@@ -1,0 +1,7 @@
+﻿{
+  "name":"Sakuraparticle",
+  "kind":"screen",
+  "src":"sakuraparticle.xef",
+  "position":"0,10,20",
+  "ec":true
+}

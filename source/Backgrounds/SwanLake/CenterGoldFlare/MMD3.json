@@ -1,0 +1,8 @@
+﻿{
+  "name":"Bokehcenterlinegreen",
+  "kind":"screen",
+  "src":"bokehcenterlinegreen.xef",
+  "position":"0,3,0",
+  "rotation":"0,-90,0",
+  "ec":true
+}

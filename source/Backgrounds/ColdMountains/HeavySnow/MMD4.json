@@ -1,0 +1,9 @@
+﻿{
+  "name":"Snow heavy",
+  "kind":"screen",
+  "src":"snow heavy.xef",
+  "scale":"1",
+  "duration":"3",
+  "rotation":"90,0,0",
+  "position":"0,9,20"
+}

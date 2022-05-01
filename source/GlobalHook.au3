@@ -45,19 +45,8 @@ Func SendCommand($hFromWnd, $hToWnd, $sDataToSend, $iData = 1, $bWchar = True )
 	$tData.dwData = $iData
 	; c("Sending From " & $hFromWnd & " To " & $hToWnd & " with Data " & $iData & " and String " & $sDataToSend)
 	
-	; $gaClientResponse[0] = False 
 	_SendMessage($hToWnd, $WM_COPYDATA, $hFromWnd, DllStructGetPtr($tData))
 
-;~ 	Local $hTimer = TimerInit()
-;~ 	; Wait for response for 0.5 seconds
-;~ 	While TimerDiff($hTimer) < 500
-;~ 	  If $gaClientResponse[0] Then
-;~ 		 c( "Client response-> Data:" & $gaClientResponse[1] & " String:" & $gaClientResponse[2])
-;~ 		 Return $gaClientResponse[2]
-;~ 	  EndIf
-;~ 	  Sleep(100)
-;~ 	WEnd
-;~ 	c("No data returned.")
 EndFunc
 
 
@@ -71,20 +60,18 @@ Func MsgHookProc($hWnd,$Msg,$wParam,$lParam)
 
 	Local $hProc = DllStructGetData($MSG_Struct ,4)	; Get the message's win handle.
 	; Filter out the messages.
- 	If $gsControlProg = "MMD3" Then 
- 		If $hProc <> $ghMMD3 And $hProc <> $guiDummy And Number($iPID) <> $giMMD3PID Then Return 0
- 	Else ; DME
- 		If $hProc <> $ghDME And $hProc <> $guiDummy And Number($iPID) <> $giDMEPID Then Return 0
- 	EndIf
+	If $hProc <> $ghMMD And $hProc <> $guiDummy And Number($iPID) <> $giProgPID Then Return 0
 
 	; if $hProc <> $hProg Then Return 0
 	Local $iMsg = DllStructGetData($MSG_Struct ,3)	; Get the message's WM number
 	Local $wParamMsg = DllStructGetData($MSG_Struct ,2)  ; Get the message's wParam
 	Local $lParamMsg = DllStructGetData($MSG_Struct ,1)  ; Get the message's lParam
+	Local $sProg = $gsControlProg
 	
-
+	If $hProc = $ghMMD Then $sProg &= "Core"	; It's the MMDCore calling
+	; $sProg will be either MMD3,MMD3Core, DME,DMECore or MMD4, MMD4Core
 	If $hProc <> $guiDummy Then 
-		c( "Message from Hwnd:" & $hProc & " t:" & WinGetTitle($hProc) & " PID:" & $iPID & " WM:" & $iMsg & " wParam:" & $wParamMsg )
+		c( "Message from Hwnd:" & $hProc & " Prog:" & $sProg & " PID:" & $iPID & " WM:" & $iMsg & " wParam:" & $wParamMsg )
 	EndIf 
 	
 	; For testing messages.
@@ -96,31 +83,19 @@ Func MsgHookProc($hWnd,$Msg,$wParam,$lParam)
 	If $iMsg = $WM_COPYDATA Then
 		; Read WM_CopyData
 		Local $sMessage
-		If $gsControlProg = "MMD3" Then 
-			If $hProc = $ghMMD3 Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, True)  ; Using wchar
-				ProcessMessage( "MMD3Core", $sMessage )
-			Elseif Number($iPID) = $giMMD3PID Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, False)  ; Using char
-				$ghMMD3Prog = $hProc	; Got the MMD3 Prog control handle
-				ProcessMessage( "MMD3", $sMessage )
-			EndIf
-			
-		Elseif $gsControlProg = "DME" Then 
-			If $hProc = $ghDME Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, True)   ; Using wchar
-				ProcessMessage( "DMECore", $sMessage )
-			Elseif Number($iPID) = $giDMEPID Then 
-				$sMessage = GetWMCopyData($iPID, $lParamMsg, False)   ; Using char
-				$ghDMEProg = $hProc
-				ProcessMessage( "DME", $sMessage )
-			EndIf
+
+		If $hProc = $ghMMD Then 
+			$sMessage = GetWMCopyData($iPID, $lParamMsg, True)  ; Using wchar
+			ProcessMessage( $sProg, $sMessage )
+		Elseif Number($iPID) = $giProgPID Then 
+			$sMessage = GetWMCopyData($iPID, $lParamMsg, False)  ; Using char
+			$ghMMDProg = $hProc	; Got the MMD3 Prog control handle
+			ProcessMessage( $sProg , $sMessage )
 		EndIf
 	EndIf
 
 	$MSG_Struct = 0	; release the memory
-
-   Return 0
+	Return 0
 EndFunc
 
 ; Get the wm_copydata string.
@@ -134,7 +109,6 @@ Func _WM_CopyDataClient($hWnd, $iMsg, $wParam, $lParam)
    $gaClientResponse[0] = True
    $gaClientResponse[1] = $tData.dwData
    $gaClientResponse[2] = $sString
-
    Return 1
 EndFunc
 
@@ -205,14 +179,10 @@ Func GetWMCopyData($ProcessID,$LPARAMA, $bWchar)
 
    Local $LparamaStructPtr = DllStructGetPtr($LparamaStruct)
    _WinAPI_ReadProcessMemory($hProcess,$LPARAMA,$LparamaStructPtr,$LparamaStructSize,$iRead)
-   ; c( "Data copied: " & $iRead)
-   ; c( "cbData:" & $LparamaStruct.cbData & " lpData:" & $LparamaStruct.lpData )
    ; Set the buffer to copy
    Local $sBuffer = DllStructCreate( ($bWchar? "wchar[" : "char[") & $LparamaStruct.cbData & "]" )
    Local $pBuffer = DllStructGetPtr( $sBuffer )
    _WinAPI_ReadProcessMemory( $hProcess, $LparamaStruct.lpData, $pBuffer, $LparamaStruct.cbData, $iRead )
-   ; c( "Data copied: " & $iRead)
-   ; c( "Data string: " & DllStructGetData( $sBuffer, 1) )
 
    Return DllStructGetData( $sBuffer, 1)
 EndFunc

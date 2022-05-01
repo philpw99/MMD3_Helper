@@ -1,9 +1,0 @@
-﻿{
-  "name":"Ps_spiritorbs",
-  "kind":"screen",
-  "src":"ps_spiritorbs.xef",
-  "scale":"1",
-  "duration":"3",
-  "position":"0,0,-7",
-  "ec":true
-}

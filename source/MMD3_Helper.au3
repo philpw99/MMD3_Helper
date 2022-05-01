@@ -15,6 +15,8 @@
 #include <WinAPIsysinfoConstants.au3>
 #include <TrayConstants.au3>
 #include <Array.au3>
+#include <File.au3>
+#include <GDIPlus.au3>	; To get the jpeg dimension only
 #include "Json.au3"
 
 opt("MustDeclareVars", 1)
@@ -39,12 +41,10 @@ Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & ", written by Philip W
 Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
 
 ; Global settings
-Global $gsMMD3Path, $gsMMD3AssetPath, $gsMMD3WorkshopPath
-Global $gsDMEPath, $gsDMEAssetPath, $gsDMEWorkshopPath
-Global $gsControlProg, $giCenterWhenDance, $gsBackgroundShow
-Global $giActiveMonitor
-Global $giDanceWithProgram, $gsDanceMonitorProgram, $giDanceWithBackground
-Global $ghMMD3, $ghDME, $giMMD3PID, $giDMEPID, $ghMMD3Prog, $ghDMEProg
+Global $gsControlProg, $giActiveMonitor
+Global $gsTrayStatus = ""
+Global $giDanceWithBackground, $giDanceRandomBackground
+Global $ghMMD, $giProgPID, $ghMMDProg
 
 ; Signified a dance extra.json is going to be used.
 Global $gsDanceExtra = "", $ghDanceTimer, $gbDanceExtraPlaying = False 
@@ -54,7 +54,7 @@ Global $ghHelperHwnd = WinGetHandle( AutoItWinGetTitle(), "")
 c ( "Helper handle:" & $ghHelperHwnd )
 Global $giHelperPID = WinGetProcess($ghHelperHwnd)
 c ( "Helper PID:" & $giHelperPID )
-Global $bProgRunning = False 	; The MMD3 or DME is running?
+Global $gbProgRunning = False 	; The MMD3 or DME is running?
 
 ; Model number and model object data created by json.
 Global Enum $MODEL_NO, $MODEL_NAME, $MODEL_OBJ
@@ -64,6 +64,16 @@ Global Enum $MODEL_ITEM_HANDLE, $MODEL_ITEM_NAME
 Global $gaModelMenuItems[0][2]		; Menu Item Handle and name, first one is always "Model List"
 Global $giActiveModelNo = 0		; 0 means active model is unknown.
 
+; These settings will be useful for playlist creation.
+Global Const $gsMMD3Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3"
+Global Const $gsMMD3AssetPath = $gsMMD3Path & "\Appdata\Assets"
+Global Const $gsMMD3WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480"
+Global Const $gsDMEPath = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMagicEngine"
+Global Const $gsDMEAssetPath = $gsDMEPath & "\Appdata\Assets"
+Global Const $gsDMEWorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1096550"
+Global Const $gsMMD4Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD4"
+Global Const $gsMMD4AssetPath = $gsMMD4Path & "\Appdata\Assets"
+Global Const $gsMMD4WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650"
 
 ; Load forms below
 ; #include "Forms\Settings.au3"
@@ -76,8 +86,12 @@ If Not LoadGlobalSettings() Then
 	SaveSettings()
 EndIf
 
+; Backgrounds and Effects
+Global $gaBackgroundList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
+
 ; Get MMD3 or DME Handle and PID
 SetHandleAndPID()
+LoadBackgroundList()
 
 #EndRegion Globals
 
@@ -91,14 +105,15 @@ SetHandleAndPID()
 ; Use a dummy GUI for wallpaper.
 
 Global $gaMonitors = GetMonitors()	; [0][0] is number of monitors, [n][0] is handle, [n][1] is tRec, [n][2] is text
-
 Global $gaWorkRect = GetWorkArea()
+
 Enum $MON_STARTX, $MON_STARTY, $MON_WIDTH, $MON_HEIGHT
 
 Global $guiDummy = GUICreate( "", $gaWorkRect[$MON_WIDTH], $gaWorkRect[$MON_HEIGHT], $gaWorkRect[$MON_STARTX], $gaWorkRect[$MON_STARTY], $WS_POPUP )
+GUISetIcon( "Icons\trayActive.ico", -1, $guiDummy )
 GUISetBkColor(0, $guiDummy)	; Black background.
 ; c( "work area: x:" & $aWorkRect[0] &" y:" & $aWorkRect[1] & " w:" & $aWorkRect[2] & " h:" & $aWorkRect[3])
-Global $picBackground = GUICtrlCreatePic( @ScriptDir & "\Images\empty.jpg", 0, 0, $gaWorkRect[$MON_WIDTH], $gaWorkRect[$MON_HEIGHT], $SS_CENTERIMAGE)
+Global $picBackground = GUICtrlCreatePic( @ScriptDir & "\Images\empty.jpg", 0, 0) ; Just a place holder.
 Global $gbBackgroundOn = False	; No background initially
 
 #Region Tray Menu Initialize
@@ -121,23 +136,29 @@ Opt("TrayMenuMode", 3)	; The default tray menu items will not be shown and items
 Local $iMenuItem = 0
 
 Global $trayTitle = TrayCreateItem( "About MMD3/MDE Helper " & $gsVersion)	; $iMenuItem = 0
-TrayCreateItem("")														; 1
+TrayCreateItem("")
 Global $trayMenuStatus = TrayCreateMenu( TrayStatus() )					; 2  Icon set by TrayChangeStatusIcon()
 Global $traySubMMD3 = TrayCreateItem("Monitor MMD3", $trayMenuStatus, -1, $TRAY_ITEM_RADIO )
-Global $traySubMDE = TrayCreateItem("Monitor MDE", $trayMenuStatus, -1, $TRAY_ITEM_RADIO )
-If $gsControlProg = "MMD3" Then
-	TrayItemSetState($traySubMMD3, $TRAY_CHECKED)
-Else
-	TrayItemSetState($traySubMDE, $TRAY_CHECKED)
-EndIf
+Global $traySubDME = TrayCreateItem("Monitor DME", $trayMenuStatus, -1, $TRAY_ITEM_RADIO )
+Global $traySubMMD4 = TrayCreateItem("Monitor MMD4", $trayMenuStatus, -1, $TRAY_ITEM_RADIO )
+; Set the initial value
+Switch $gsControlProg
+	Case "MMD3"
+		TrayItemSetState($traySubMMD3, $TRAY_CHECKED)
+	Case "DME"
+		TrayItemSetState($traySubDME, $TRAY_CHECKED)
+	Case "MMD4"
+		TrayItemSetState($traySubMMD4, $TRAY_CHECKED)
+EndSwitch
+
 $iMenuItem = 3
 
 Global $trayMenuModels = TrayCreateMenu("ActiveModel:")	; Active model name.The subitems are all loaded models.
 _TrayMenuAddImage($hIcons[0], $iMenuItem)
 TrayCreateItem("Model List", $trayMenuModels)
 TrayCreateItem("", $trayMenuModels)
-
 RefreshModelListMenu()	; Add the model list by $aModelItems
+
 $iMenuItem += 1
 
 Global $trayMenuCommands = TrayCreateMenu("Model Commands")		; Send common or custom commands to a model.
@@ -145,6 +166,7 @@ _TrayMenuAddImage($hIcons[1], $iMenuItem)
 Global $traySubCmdStop = TrayCreateItem("Stop", $trayMenuCommands)
 Global $traySubCmdShowActive = TrayCreateItem("Show Active Model", $trayMenuCommands)
 Global $traySubCmdStartRandom = TrayCreateItem("Start Random Dance", $trayMenuCommands)
+
 $iMenuItem += 1
 
 Global $trayMenuPlayList = TrayCreateMenu("Active Play List:")		; Add / remove / Play the songs in play list.
@@ -152,13 +174,16 @@ _TrayMenuAddImage($hIcons[4], $iMenuItem)
 Global $traySubStartPlaylist = TrayCreateItem("Start Active Playlist", $trayMenuPlayList)
 Global $traySubStopPlaylist = TrayCreateItem("Stop Active Playlist", $trayMenuPlayList)
 Global $traySubManagePlaylist = TrayCreateItem("Manage Play Lists", $trayMenuPlayList)
+
 $iMenuItem += 1
 
 Global $trayMenuSettings = TrayCreateMenu("Settings")	; If a program play sound, active model random dances.
 _TrayMenuAddImage($hIcons[5], $iMenuItem)
 ; Global $traySubChkDanceWithProgram = TrayCreateItem("Dance with a Program's Music/Sound", $trayMenuSettings)	; $giDanceWithProgram
-Global $traySubChkDanceWithBackground = TrayCreateItem("Dance with Background/Effect", $trayMenuSettings)				; $giDanceWithBackground
-Global $traySubDanceSettings = TrayCreateItem("Dance Settings", $trayMenuSettings)
+Global $traySubChkDanceWithBackground = TrayCreateItem("Enable Dance with Background/Effect", $trayMenuSettings)				; $giDanceWithBackground
+If $giDanceWithBackground = 1 Then TrayItemSetState($traySubChkDanceWithBackground, $TRAY_CHECKED)
+Global $traySubChkRandomBackground = TrayCreateItem("Random Background", $trayMenuSettings) 	; $giDanceRandomBackground
+If $giDanceRandomBackground = 1 Then TrayItemSetState($traySubChkRandomBackground, $TRAY_CHECKED)
 
 Global $traySubMenuActiveMonitor = TrayCreateMenu("Show Background on Monitor", $trayMenuSettings)
 Global $trayMonitors[ $gaMonitors[0][0] ]
@@ -174,7 +199,6 @@ Global $trayExit = TrayCreateItem("Exit")
 _TrayMenuAddImage($hIcons[6], $iMenuItem)
 
 TrayChangeStatusIcon()
-
 
 #EndRegion Tray Menu
 
@@ -192,16 +216,80 @@ Local $hTimer1Sec = TimerInit()
 while True
 	Local $nTrayMsg = TrayGetMsg()
 	Switch $nTrayMsg
+		
+		Case $traySubMMD3
+			If $gsControlProg <> "MMD3" Then 
+				$gsControlProg = "MMD3"
+				; TrayItemSetState($traySubMMD3, $TRAY_CHECKED)
+				SetHandleAndPID()
+				$gsTrayStatus = ""	; Reset the status text
+				CheckStatus()
+				SaveSettings()
+				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
+				; Clean the model list
+				Global $gaModels[0][3]
+				RefreshModelListMenu()
+			EndIf
+		Case $traySubDME
+			If $gsControlProg <> "DME" Then 
+				$gsControlProg = "DME"
+				SetHandleAndPID()
+				$gsTrayStatus = ""	; Reset the status text
+				CheckStatus()
+				SaveSettings()
+				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
+				; Clear the model list
+				Global $gaModels[0][3]
+				RefreshModelListMenu()
+			EndIf
+		Case $traySubMMD4
+			If $gsControlProg <> "MMD4" Then 
+				$gsControlProg = "MMD4"
+				SetHandleAndPID()
+				$gsTrayStatus = ""	; Reset the status text
+				CheckStatus()
+				SaveSettings()
+				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
+				; Clear the model list
+				Global $gaModels[0][3]
+				RefreshModelListMenu()
+			EndIf
+			
 		Case $traySubChkDanceWithBackground
-			; Enable dance with Background / Effects.
 			If $giDanceWithBackground = 0 Then 
+				; Enable dance with Background / Effects.
 				TrayItemSetState($traySubChkDanceWithBackground, $TRAY_CHECKED)
 				$giDanceWithBackground = 1
+				TrayItemSetState($traySubChkRandomBackground, $TRAY_CHECKED)
+				$giDanceRandomBackground = 1
 			Else 
+				; Disable dance with Background / Effects.
 				TrayItemSetState($traySubChkDanceWithBackground, $TRAY_UNCHECKED)
 				$giDanceWithBackground = 0
+				TrayItemSetState($traySubChkRandomBackground, $TRAY_UNCHECKED)
+				$giDanceRandomBackground = 0
 			EndIf
 			SaveSettings()
+		Case $traySubChkRandomBackground
+			If $giDanceRandomBackground = 0 Then 
+				; Enable random background
+				TrayItemSetState($traySubChkRandomBackground, $TRAY_CHECKED)
+				$giDanceRandomBackground = 1
+			Else 
+				; Disable random background
+				TrayItemSetState($traySubChkRandomBackground, $TRAY_UNCHECKED)
+				$giDanceRandomBackground = 0
+			EndIf
+			SaveSettings()
+		Case $traySubCmdStop
+			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".Interrupt" )
+			If $gbDanceExtraPlaying Then StopDanceExtra()
+		Case $traySubCmdShowActive
+			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".active" )
+		Case $traySubCmdStartRandom
+			NotDoneYet()
+		Case $traySubStartPlaylist, $traySubStopPlaylist, $traySubManagePlaylist
+			NotDoneYet()
 		Case $trayTitle
 			About()
 		Case $trayExit
@@ -220,14 +308,21 @@ while True
 	If $gsDanceExtra <> "" Then
 		If $gsDanceExtra = "STOP" Then 
 			StopDanceExtra()
+		ElseIf $gsDanceExtra = "RANDOM" Then 
+			; Start a random background/effct $gaBackgroundList, $gaEffectList
+			If $giDanceRandomBackground = 1 Then 
+				; Choose a random background
+				Local $sRandomFolder = @ScriptDir & "\Backgrounds\" & $gaBackgroundList[ Random( 1, $gaBackgroundList[0], 1) ]
+				$gsDanceExtra = $sRandomFolder & "\extra.json"
+				StartDanceExtra()
+			EndIf
 		Else
+			c("DanceExtra:" & $gsDanceExtra & "|" )
 			; Start a new extra
 			if $gbDanceExtraPlaying Then 
 				StopDanceExtra()
 			EndIf
-			$ghDanceTimer = TimerInit()
 			StartDanceExtra()
-			$gsDanceExtra = ""
 		EndIf
 	EndIf
 	
@@ -236,7 +331,7 @@ while True
 		if $nTrayMsg = $trayMonitors[$i-1] Then 
 			; Set the active monitor
 			$giActiveMonitor = $i
-			SetBackground()
+			SetBackgroundRect()
 		EndIf
 	Next
 	
@@ -246,10 +341,10 @@ while True
 	; Check to see if the dance is over.
 		if TimerDiff($ghDanceTimer) > $gfDanceTime Then
 			; Times up for this item
-			If $giDanceItem >= UBound($gaDanceData) Then
+			If $giDanceItem+1 >= UBound($gaDanceData) Then
 				StopDanceExtra()
 			Else
-				; Next item
+				; Next item in extra.json
 				StartDanceNext()
 			EndIf
 		EndIf
@@ -269,17 +364,31 @@ Wend
 ; Clean up process.
 GUIDelete($guiDummy)
 CleanupHook()
+If $gbDanceExtraPlaying Then StopDanceExtra()
 Exit 
 
 #Region Main Functions
 
+Func NotDoneYet()
+	MsgBox(0, "Not Done Yet", "This feature is not implemented yet. Maybe wait for the next version?" )
+EndFunc
+
+Func LoadBackgroundList()
+	$gaBackgroundList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
+EndFunc
+
 Func StartDanceNext()
 	; run the next dance extra
-	If $giDanceItem >= UBound($gaDanceData) Then Return SetError(1)	; Just in case
 	$giDanceItem += 1
+	If $giDanceItem >= UBound($gaDanceData) Then
+		; It should have been stopped. So here is just in case.
+		StopDanceExtra()
+		Return Error(1, @ScriptLineNumber)
+	EndIf
+
 	
 	Local $oDance = $gaDanceData[$giDanceItem]
-	If Not IsObj($oDance) Then Return SetError(1)
+	If Not IsObj($oDance) Then Return Error(1, @ScriptLineNumber)
 	
 	c("Next Dance seconds:" & $oDance.Item("Time") )
 
@@ -289,12 +398,12 @@ Func StartDanceNext()
 	If $oDance.Item("Background") = "" Then
 		; It's empty. Keep the existing background. This item might just want to change the effect.
 	Else 
-		Local $sBigFile = $gsDancePath & "\" & $oDance.Item("Background")
+		Local $sPicFile = $gsDancePath & "\" & $oDance.Item("Background")
 	
 		; First delete the existing pic control
 		GUICtrlDelete( $picBackground )
 		; Create it again to get the dimension of the picture
-		$picBackground = GUICtrlCreatePic($sBigFile, 0, 0, 0, 0)
+		$picBackground = GUICtrlCreatePic($sPicFile, 0, 0, 0, 0)
 		Local $aDimension = ControlGetPos( $guiDummy, "", $picBackground)	; Get the picture size
 		Local $aSize = CalcBackgroundPos($aDimension[2], $aDimension[3])
 
@@ -304,37 +413,52 @@ Func StartDanceNext()
 	
 	If $oDance.Item("Effect") = "" Then
 		; No effects
-		SendCommand( $ghHelperHwnd, $ghMMD3, "effect.remove" )
+		SendCommand( $ghHelperHwnd, $ghMMD, "effect.remove" )
 	Else
-		; Load an effect
-		Local $sEffectFolder = $gsDancePath & "\" & $oDance.Item("Effect")
-		If Not FileExists($sEffectFolder & "\item.json" ) Then 
-			Return SetError(2)
-		EndIf
-		
-		Local $oEffect = Json_Decode( FileRead( $sEffectFolder & "\item.json") ) ; Get the effect settings from file.
-		If Not IsObj($oEffect) Then Return SetError(3)
-		; Set effect string
-		$oEffect.Item("path") = $sEffectFolder & "\"
-		$oEffect.Item("src") = $sEffectFolder & "\" & $oEffect.Item("src")
-		Local $sEffectString = "loadEffect:effect:" & Json_Encode( $oEffect )
-		c( "effect to send:" & $sEffectString )
-		SendCommand( $ghHelperHwnd, $ghMMD3, $sEffectString )
+		; Load an effect by folder
+		ShowEffect(  $gsDancePath & "\" & $oDance.Item("Effect") )
 	EndIf	
 
 EndFunc
 
+Func ShowEffect($sEffectFolder)
+	Local $sEffectFile = $sEffectFolder & "\" & $gsControlProg & ".json"
+;~ 	Switch $gsControlProg
+;~ 		Case "MMD3"
+;~ 			$sEffectFile = $sEffectFolder & "\MMD3.json"
+;~ 		Case "MDE"
+;~ 			$sEffectFile = $sEffectFolder & "\MDE.json"
+;~ 		Case "MMD4"
+;~ 			$sEffectFile = $sEffectFolder & "\MMD4.json"
+;~ 		Case Else
+;~ 			$sEffectFile = $sEffectFolder & "\item.json"
+;~ 	EndSwitch
+
+	If Not FileExists($sEffectFile) Then Return Error(1, @ScriptLineNumber)
+	
+	Local $oEffect = Json_Decode( FileRead( $sEffectFile) ) ; Get the effect settings from file.
+	If Not IsObj($oEffect) Then Return Error(2, @ScriptLineNumber)
+	
+	; Set effect string
+	$oEffect.Item("path") = $sEffectFolder & "\"
+	$oEffect.Item("src") = $sEffectFolder & "\" & $oEffect.Item("src")
+	Local $sEffectString = "loadEffect:effect:" & Json_Encode( $oEffect )
+	
+	c( "effect to send:" & $sEffectString )
+	SendCommand( $ghHelperHwnd, $ghMMD, $sEffectString )
+EndFunc
+
 Func StopDanceExtra()
-	; c( " hide background and send command: effect.remove")
-	HideBackground()
-	SendCommand( $ghHelperHwnd, $ghMMD3, "effect.remove" )
-	; Reset all the dance data.
 	$gbDanceExtraPlaying = False
 	$gsDanceExtra = ""
 	$gaDanceData = ""
 	$gsDancePath = ""
 	$giDanceItem = 0
 	$gfDanceTime = 0
+
+	SendCommand( $ghHelperHwnd, $ghMMD, "effect.remove" )
+	HideBackground()	; It will take a while for this to finish. So it's the last thing to do.
+	; Reset all the dance data.
 EndFunc
 
 Func StartDanceExtra()
@@ -342,21 +466,26 @@ Func StartDanceExtra()
 	; Global $gsDanceExtra, $ghDanceTimer, $gaDanceData,$giDanceItem,$gfDanceTime
 	$gsDancePath = GetFolderFromPath( $gsDanceExtra )	; Store the path of dance.
 	$gaDanceData = Json_Decode( FileRead( $gsDanceExtra ) )
-	If UBound($gaDanceData) = 0 Then
-		Return SetError(1)
+	If UBound($gaDanceData) = 0 or Not IsObj($gaDanceData[0]) Then
+		c( "error in $gsDanceExtra:" & $gsDanceExtra)
+		$gsDanceExtra = ""
+		Return Error(1, @ScriptLineNumber)
 	EndIf
-
-	$giDanceItem = 0	; Currently using the first item in the array.
+	
+	$gsDanceExtra = ""
+	
+	$giDanceItem = 0	; Currently using the first item in the extra's array.
 	Local $oDance = $gaDanceData[0]
-	If Not IsObj($oDance) Then Return SetError(1)
 			
 	; Should be only 3 values : Time, Background and Effect
 	; Time is number of seconds of the song, Background is the picture full path
 	; Effect is the full effect string.
 	$gbDanceExtraPlaying = True		; Notify the main loop the dance extra is running.
+	$ghDanceTimer = TimerInit()		; Start the timer.
 	
 	c("Dance seconds:" & $oDance.Item("Time") )
 	$gfDanceTime = $oDance.Item("Time") * 1000	; Convert to milliseconds
+	if $gfDanceTime = 0 Then $gfDanceTime = 9999999	; Just in case.
 	
 	Local $sBack = $oDance.Item("Background")
 	If $sBack <> "" Then 
@@ -366,25 +495,16 @@ Func StartDanceExtra()
 			$sBack = $gsDancePath & "\" & $sBack
 		EndIf
 		c( "background to show:" & $sBack)
-		; SetBackground()
 		ShowBackground($sBack)
 	EndIf
-	
-	If $oDance.Item("Effect") <> "" Then 
-		Local $sEffectFolder = $gsDancePath & "\" & $oDance.Item("Effect")
-		
-		If Not FileExists($sEffectFolder & "\item.json" ) Then 
-			Return SetError(1)
+	Local $sEffect = $oDance.Item("Effect")	; Show effect's folder.
+	If  $sEffect <> "" Then
+		If StringMid($sEffect, 2, 1) <> ":" Then
+			; Relative path.
+			$sEffect = $gsDancePath & "\" & $sEffect
 		EndIf
-		
-		Local $oEffect = Json_Decode( FileRead( $sEffectFolder & "\item.json") ) ; Get the effect settings from file.
-		If Not IsObj($oEffect) Then Return SetError(1)
-		; Set effect string
-		$oEffect.Item("path") = $sEffectFolder & "\"
-		$oEffect.Item("src") = $sEffectFolder & "\" & $oEffect.Item("src")
-		Local $sEffectString = "loadEffect:effect:" & Json_Encode( $oEffect )
-		c( "effect to send:" & $sEffectString )
-		SendCommand( $ghHelperHwnd, $ghMMD3, $sEffectString )
+		c( "Effect to show:" & $sEffect)
+		ShowEffect(  $sEffect )
 	EndIf
 EndFunc
 
@@ -394,27 +514,29 @@ EndFunc
 Func ProcessMessage($sProg, $sMessage)
 	c( $sProg & ":" & @CRLF & "-----" & @crlf & $sMessage & @CRLF & @CRLF )
 	Switch $sProg
-		Case "MMD3Core"
+		Case "MMD3Core", "DMECore", "MMD4Core"
 			Select 	; Handle the command message from mmd3core.
 				Case StringStartsWith( $sMessage, "loadModel:model" )
 					; Load a new model.
 					Local $iModelNo = Int( StringBtw( $sMessage, "loadModel:model", ":{" ) )
 					Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
-					c( "json to decode:" & $sJson)
+					; c( "json to decode:" & $sJson)
 					AddModel( $iModelNo, $sJson )
 				Case $giDanceWithBackground = 1
 					If StringInStr($sMessage, ".DanceReady", 1) <> 0 Then 
 						; Time to start a dance. Check if Extra.json exist.
 						Local $sPath = GetFolderFromPath( StringAfter($sMessage, "|") )
-						If FileExists( $sPath & "\extra.json" ) Then 
+						If FileExists( $sPath & "\extra.json" ) Then ; The one with specified background/effects takes the priority
 							$gsDanceExtra = $sPath & "\extra.json"  ; Once $gsDanceExtra is set. It will be processed by the main loop.
+						ElseIf $giDanceWithBackground = 1 Then 
+							$gsDanceExtra = "RANDOM"		; Start random background / effect
 						EndIf
-					ElseIf StringInStr($sMessage, ".DanceEnd:", 1) <> 0 Then 
+					ElseIf StringInStr($sMessage, "DanceEnd", 1) <> 0 Then 
 						; User stop a dance.
 						$gsDanceExtra = "STOP"
 					EndIf 
 			EndSelect 
-		Case "MMD3"
+		Case "MMD3", "DME", "MMD4"
 			Select ; Handle the messages from mmd3
 				Case StringStartsWith($sMessage, "active:model")
 					; Set active model
@@ -425,6 +547,7 @@ Func ProcessMessage($sProg, $sMessage)
 					Local $iNumber = Int( StringBtw($sMessage, "model:model", "|") )
 					RemoveModelFromMessage($iNumber)
 			EndSelect
+
 	EndSwitch
 	
 EndFunc
@@ -512,13 +635,11 @@ Func SetActiveModelFromMessage($iNumber)
 EndFunc
 
 Func SetActiveModelFromMenu($iNumber)
-	If Not IsInt($iNumber) Then Return SetError(1)
-	$giActiveModelNo = $iNumber
-	If $gsControlProg = "MMD3" Then
-		SendCommand( $ghHelperHwnd, $ghMMD3, "model" & $iNumber & ".active" )
-	Else
-		SendCommand( $ghHelperHwnd, $ghDME, "model" & $iNumber & ".active" )
-	EndIf
+	; No, you cannot set active model from the menu.
+	; So it will only wave at you, nothing more.
+	If Not IsInt($iNumber) Then Return Error(1, @ScriptLineNumber)
+	; $giActiveModelNo = $iNumber
+	SendCommand( $ghHelperHwnd, $ghMMD, "model" & $iNumber & ".active" )
 EndFunc
 
 
@@ -575,66 +696,42 @@ EndFunc
 
 Func StringBtw($sFull, $str1, $str2, $case = 1)	; Default: case sensitive.
 	Local $iPos1 = StringInStr($sFull, $str1, $case), $iPos2
-	If $iPos1 = 0 Then Return SetError(1)	; $str1 Not found
+	If $iPos1 = 0 Then Return Error(1, @ScriptLineNumber)	; $str1 Not found
 	$iPos1 += StringLen($str1)
 	If $str2 = "" Then
 		$iPos2 = StringLen($sFull)
 	Else
 		$iPos2 = StringinStr( $sFull, $str2, $case, 1, $iPos1 )
-		If $iPos2 = 0 Then Return SetError(2) ; $str2 not found
+		If $iPos2 = 0 Then Return Error(2, @ScriptLineNumber) ; $str2 not found
 	EndIf
 	Return StringMid( $sFull, $iPos1, $iPos2-$iPos1+1 )
 EndFunc
 
 Func InitSettings()
-	$gsMMD3Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3"
-	$gsMMD3AssetPath = $gsMMD3Path & "\Appdata\Assets"
-	$gsMMD3WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480"
-	$gsDMEPath = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMagicEngine"
-	$gsDMEAssetPath = $gsDMEPath & "\Appdata\Assets"
-	$gsDMEWorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1096550"
-
-	$gsBackgroundShow = "Disable"
-	$giCenterWhenDance = 0
+	; This settings will be saved
 	$gsControlProg = "MMD3"
 	$giActiveMonitor = 1
-	$giDanceWithProgram = 0
-	$gsDanceMonitorProgram = ""
-	$giDanceWithBackground = 0		; 0 : disable , 1: enable. If enabled, the details are in sqlite file: helper.db
-	; Helper.db will have Dance->Background | Model -> Background | All Background  data.
+	$giDanceWithBackground = 1		; 0 : disable , 1: enable.
+	$giDanceRandomBackground = 1
 EndFunc
 
 Func SaveSettings()
-	RegWrite( $gsRegBase, "MMD3Path", "REG_SZ", $gsMMD3Path )
-	RegWrite( $gsRegBase, "MMD3WorkshopPath", "REG_SZ", $gsMMD3WorkshopPath )
-	RegWrite( $gsRegBase, "DMEPath", "REG_SZ", $gsDMEPath )
-	RegWrite( $gsRegBase, "DMEWorkshopPath", "REG_SZ", $gsDMEWorkshopPath )
-	
-	RegWrite( $gsRegBase, "BackgroundShow", "REG_SZ", $gsBackgroundShow )
-	RegWrite( $gsRegBase, "CenterWhenDance", "REG_DWORD", $giCenterWhenDance )
 	RegWrite( $gsRegBase, "ControlProgram", "REG_SZ", $gsControlProg )
 	RegWrite( $gsRegBase, "ActiveMonitor", "REG_DWORD", $giActiveMonitor )
-	RegWrite( $gsRegBase, "DanceWithProgram", "REG_DWORD", $giDanceWithProgram )
-	RegWrite( $gsRegBase, "DanceMonitorProgram", "REG_SZ", $gsDanceMonitorProgram )
 	RegWrite( $gsRegBase, "DanceWithBackground", "REG_DWORD", $giDanceWithBackground )
+	RegWrite( $gsRegBase, "DanceRandomBackground", "REG_DWORD", $giDanceRandomBackground )
 EndFunc
 
 Func LoadGlobalSettings()
 	; return: Load successful  true/false
 	$gsControlProg = RegRead($gsRegBase, "ControlProgram") ; "MMD3" or "DME"
 	If @error Then Return False
-	$gsMMD3Path = RegRead($gsRegBase, "MMD3Path")	; Location of DesktopMMD3.exe
-	$gsMMD3AssetPath = $gsMMD3Path & "\AppData\Assets" ; Should be MMD3Path\AppData\Assets\
-	$gsMMD3WorkshopPath = RegRead($gsRegBase, "MMD3WorkshopPath") ; Download and installed workshop items path.
-	$gsDMEPath = RegRead($gsRegBase, "DMEPath")
-	$gsDMEAssetPath = $gsDMEPath & "\AppData\Assets"
-	$gsDMEWorkshopPath = RegRead($gsRegBase, "DMEWorkshopPath")
-	$gsBackgroundShow = RegRead($gsRegBase, "BackgroundShow") ; Disable, EnableRandom or EnableSpecified
-	$giCenterWhenDance = RegRead($gsRegBase, "CenterWhenDance") ; true or false
 	$giActiveMonitor = RegRead($gsRegBase, "ActiveMonitor") 
-	$giDanceWithProgram = RegRead($gsRegBase, "DanceWithProgram")
-	$gsDanceMonitorProgram = RegRead($gsRegBase, "DanceMonitorProgram")
+	If @error Then Return False
 	$giDanceWithBackground = RegRead($gsRegBase, "DanceWithBackground")
+	If @error Then Return False
+	$giDanceRandomBackground = RegRead($gsRegBase, "DanceRandomBackground")
+	If @error Then Return False
 	Return True	; loaded
 EndFunc
 
@@ -666,35 +763,61 @@ Func CalcBackgroundPos($iX, $iY)
 	Return $aRet
 EndFunc
 
-Func ShowBackground( $sBigFile )
-	; First delete the existing pic control
-	GUICtrlDelete( $picBackground )
-	; Create it again to get the dimension of the picture
-	$picBackground = GUICtrlCreatePic($sBigFile, 0, 0, 0, 0)
-	Local $aDimension = ControlGetPos( $guiDummy, "", $picBackground)	; Get the picture size
-	Local $aSize = CalcBackgroundPos($aDimension[2], $aDimension[3])
+; This function switch the background immediately without fade in. No change in guiDummy
+Func SwitchBackground( $sBgFile)
+	Local $aDim = GetJpegDimension($sBgFile)
+	if @error Then Return Error(1, @ScriptLineNumber)
+		
+	Local $aSize = CalcBackgroundPos($aDim[0], $aDim[1])
 
 	; Now set the position of pic control, GUI should have set on the full work area.
 	GUICtrlSetPos($picBackground, $aSize[0], $aSize[1], $aSize[2], $aSize[3])
+	GUICtrlSetImage( $picBackground, $sBgFile ) 
 	
-	; GUICtrlSetImage( $picBackground, $sBgFile ) 
+	$gbBackgroundOn = True
+	; Set the dancer to the front.
+	WinActivate($ghMMD)
+
+EndFunc
+
+; This function fade in and show the background. Change guiDummy to visible
+Func ShowBackground( $sBgFile )
+	Local $aDim = GetJpegDimension($sBgFile)
+	If @error Then Return Error(1, @ScriptLineNumber)
+	; Create it again to get the dimension of the picture
+	c( "picture size: " & $aDim[0] & "x" & $aDim[1] )
+	Local $aSize = CalcBackgroundPos($aDim[0], $aDim[1])
+
+	c( "BackgroundRect:" & $aSize[0] & ", " & $aSize[1] & ", " & $aSize[2] & ", " & $aSize[3] )
+	; Now set the position of pic control, GUI should have set on the full work area.
+	GUICtrlSetPos($picBackground, $aSize[0], $aSize[1], $aSize[2], $aSize[3])
+	GUICtrlSetImage( $picBackground, $sBgFile ) 
 	; Fade in
 	WinSetTrans($guiDummy, "", 0 )
 	GUISetState( @SW_SHOW, $guiDummy)
-	For $i = 5 to 255 step 5
+	For $i = 5 to 255 step 25	; Change background alpha 10 times in 1 sec.
 		WinSetTrans($guiDummy, "", $i )
-		Sleep(20)
+		Sleep(100)
 	Next
 	$gbBackgroundOn = True
 	; Set the dancer to the front.
-	If $gsControlProg = "MMD3" Then 
-		WinActivate($ghMMD3)
-	ElseIf $gsControlProg = "DME" Then 
-		WinActivate($ghDME)
-	EndIf
+	WinActivate($ghMMD)
+
 EndFunc
 
-Func SetBackground()
+Func GetJpegDimension($sPath)
+    Local $aDim[2]
+    If Not FileExists($sPath) Then Return Error(1, @ScriptLineNumber)
+     _GDIPlus_Startup()
+    Local $hImage = _GDIPlus_ImageLoadFromFile($sPath)
+    $aDim[0] = _GDIPlus_ImageGetWidth($hImage)
+    $aDim[1] = _GDIPlus_ImageGetHeight($hImage)
+    _GDIPlus_ImageDispose($hImage)
+    _GDIPlus_Shutdown()
+    Return $aDim
+EndFunc
+
+Func SetBackgroundRect()
 	; Set the background position and size based on active monitor
 	$gaWorkRect = GetWorkArea()
 	GUISetCoord ( $gaWorkRect[$MON_STARTX], $gaWorkRect[$MON_STARTY], $gaWorkRect[$MON_WIDTH], $gaWorkRect[$MON_HEIGHT] , $guiDummy)
@@ -704,9 +827,9 @@ EndFunc
 
 Func HideBackground()
 	; Fade out.
-	For $i = 255 to 0 Step -5
+	For $i = 250 to 0 Step -25
 		WinSetTrans($guiDummy, "", $i)
-		Sleep(20)
+		Sleep(100)
 	Next
 	GUISetState( @SW_HIDE, $guiDummy )
 	GUICtrlSetImage( $picBackground, @ScriptDir & "\Images\empty.jpg" )
@@ -726,7 +849,7 @@ Func GetWorkArea()
 EndFunc   ;==>GetWorkArea
 
 Func TrayChangeStatusIcon()
-	If $bProgRunning Then 
+	If $gbProgRunning Then 
 		TraySetIcon("Icons\trayActive.ico")
 		_TrayMenuAddImage($hIcons[7], 2)
 	Else 
@@ -736,45 +859,58 @@ Func TrayChangeStatusIcon()
 EndFunc
 
 Func TrayStatus()
-	Return "Status: " & $gsControlProg & ( $bProgRunning ? " is active." : " is not active.")
+	Return "Status: " & $gsControlProg & ( $gbProgRunning ? " is active." : " is not active.")
 EndFunc
 
 Func SetHandleAndPID()
 	; It will check if the control program is running and set the Hwnd and PID
 	Local $iPID
-	If $gsControlProg = "MMD3" Then 
-		$ghMMD3 = WinGetHandle( "DMMDCore3", "")
-		If @error Then
-			$bProgRunning = False 
-		Else
-			$bProgRunning = True
-			$iPID = WinGetProcess("DesktopMMD3", "")
-			If $iPID <> $giMMD3PID Then 
-				$giMMD3PID = $iPID
-				c ( "MMD3core hwnd:" & $ghMMD3 & " MMD3 PID:" & $giMMD3PID )
-			EndIf 
-		EndIf
-	Else ; DME
-		$ghDME = WinGetHandle( "DMMDCore", "")
-		If @error Then ; Program is not running
-			$bProgRunning = False
-		Else 
-			$iPID = WinGetProcess( "DesktpMagicEngine", "")
-			If $iPID <> $giDMEPID Then 
-				$giDMEPID = $iPID
-				c ( "DMEcore hwnd:" & $ghDME & " DME PID:" & $giDMEPID )
-			EndIf 
-		EndIf
-	EndIf
-	
- 	Return $bProgRunning
+	Switch $gsControlProg
+		Case "MMD3"
+			$ghMMD = WinGetHandle( "DMMDCore3", "")
+			If @error Then
+				$gbProgRunning = False 
+			Else
+				$gbProgRunning = True
+				$iPID = WinGetProcess("DesktopMMD3", "")
+				If $iPID <> $giProgPID Then 
+					$giProgPID = $iPID
+					c ( "MMD3Core hwnd:" & $ghMMD & " MMD3 PID:" & $giProgPID )
+				EndIf 
+			EndIf
+		Case "DME"
+			$ghMMD = WinGetHandle( "[REGEXPTITLE:DMMDCore$]", "")
+			If @error Then ; Program is not running
+				$gbProgRunning = False
+			Else
+				$gbProgRunning = True
+				$iPID = WinGetProcess( "DesktopMagicEngine", "")
+				If $iPID <> $giProgPID Then 
+					$giProgPID = $iPID
+					c ( "DMEcore hwnd:" & $ghMMD & " DME PID:" & $giProgPID )
+				EndIf 
+			EndIf
+		Case "MMD4"
+			$ghMMD = WinGetHandle( "DMMD4Core", "")
+			If @error Then ; Program is not running
+				$gbProgRunning = False
+			Else
+				$gbProgRunning = True
+				$iPID = WinGetProcess( "DesktopMMD4", "")
+				If $iPID <> $giProgPID Then 
+					$giProgPID = $iPID
+					c ( "MMD4Core hwnd:" & $ghMMD & " MMD4 PID:" & $giProgPID )
+				EndIf 
+			EndIf
+	EndSwitch
+ 	Return $gbProgRunning
 EndFunc
 
-Func SetStatus()
- 	If TrayItemGetText( $trayMenuStatus ) <> TrayStatus() Then
- 		c("change title")
+Func CheckStatus()
+ 	If $gsTrayStatus <> TrayStatus() Then
  		TrayItemSetText( $trayMenuStatus, TrayStatus() )
 		TrayChangeStatusIcon()
+		$gsTrayStatus = TrayStatus()
  	EndIf
 EndFunc
 
@@ -783,7 +919,7 @@ Func CheckEverySecond()
 	if @error Then ExitC ("Error in checking hook. Error:" & @error)
 	If Not $bHook Then ReHook()
 	SetHandleAndPID()	; Check to see if MMD3 or DME still running.
-	SetStatus()			; Set the status text.
+	CheckStatus()			; Set the status text.
 
 EndFunc
 
@@ -818,7 +954,7 @@ Func GetMonitorWorkAreas()
 		 Next
 	  Next
    Else
-	  Return SetError(1)
+	  Return Error(1, @ScriptLineNumber)
    EndIf
    Return $aData
 EndFunc
@@ -849,9 +985,14 @@ Func GetMonitors()
 			$aData[$i][2] = "Monitor " & $i & ": " & $x & "x" & $y
 		Next
 	Else
-		Return SetError(1)
+		Return Error(1, @ScriptLineNumber)
 	EndIf
 	Return $aData
+EndFunc
+
+Func Error($err, $line)
+	c("Error at line:" & $line & " Error:" & $err)
+	SetError( $err )
 EndFunc
 
 Func GetFolderFromPath($FullPath)

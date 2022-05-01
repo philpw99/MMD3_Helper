@@ -1,9 +1,0 @@
-﻿{
-  "name":"Snowing_light",
-  "kind":"screen",
-  "src":"snowing_light.xef",
-  "scale":"1",
-  "duration":"3",
-  "position":"0,0,-16",
-  "ec":true
-}

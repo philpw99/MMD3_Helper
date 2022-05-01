@@ -1,0 +1,9 @@
+﻿{
+  "name":"Sun_shaft_small",
+  "kind":"screen",
+  "src":"sun_shaft_small.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"3,4,0",
+  "rotation":"0,0,-50"
+}

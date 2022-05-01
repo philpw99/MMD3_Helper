@@ -1,0 +1,9 @@
+﻿{
+  "name":"Godraysblue",
+  "kind":"screen",
+  "src":"godraysblue.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,4,0",
+  "rotation":"-90,0,0"
+}
