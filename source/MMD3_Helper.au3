@@ -33,7 +33,7 @@ If AlreadyRunning() Then
    Exit
 EndIf
 
-Global Const $gsVersion = "v1.0.2"
+Global Const $gsVersion = "v1.0.3"
 Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & ", written by Philip Wang." _
 						   &@CRLF& "Extend the features of the Excellent DesktopMagicEngine, DesktopMMD3 and DesktopMMD4."
 
@@ -43,7 +43,7 @@ Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
 ; Global settings
 Global $gsControlProg, $giActiveMonitor
 Global $gsTrayStatus = ""
-Global $giDanceWithBackground, $giDanceRandomBackground
+Global $giDanceWithBg, $giDanceRandomBg, $giCurrentBg
 Global $ghMMD, $giProgPID, $ghMMDProg
 
 ; Signified a dance extra.json is going to be used.
@@ -87,7 +87,7 @@ If Not LoadGlobalSettings() Then
 EndIf
 
 ; Backgrounds and Effects
-Global $gaBackgroundList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
+Global $gaBgList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
 
 ; Get MMD3 or DME Handle and PID
 SetHandleAndPID()
@@ -119,9 +119,7 @@ Global $gbBackgroundOn = False	; No background initially
 #Region Tray Menu Initialize
 
 Global Const $gsIconPath = @ScriptDir & "\Icons\"
-
 Global $hIcons[9]	; 9(0-8) bmps  for the tray menus
-
 For $i = 0 to UBound($hIcons)-1
 	$hIcons[$i] = _LoadImage($gsIconPath & $i & ".bmp", $IMAGE_BITMAP)
 Next
@@ -176,14 +174,24 @@ Global $traySubStopPlaylist = TrayCreateItem("Stop Active Playlist", $trayMenuPl
 Global $traySubManagePlaylist = TrayCreateItem("Manage Play Lists", $trayMenuPlayList)
 
 $iMenuItem += 1
+Global $trayMenuChooseBg = TrayCreateMenu("Choose Background")
+_TrayMenuAddImage($hIcons[3], $iMenuItem)
+Global $traySubChkRandomBg = TrayCreateItem("Random Background", $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO ) 	; $giDanceRandomBg
+If $giDanceRandomBg = 1 Then TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
+; TrayCreateItem("", $trayMenuChooseBg)	; Seperator
+Global $traySubBgItems[ $gaBgList[0]+1 ]
+$traySubBgItems[0] = $gaBgList[0]	; set the number of bk at [0]. Now $gaBgList and $traySubBgItems are 1 to 1.
+; Create the background menu list
+For $i = 1 To $gaBgList[0]
+	$traySubBgItems[$i] = TrayCreateItem( $gaBgList[$i], $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO )
+Next
 
+$iMenuItem += 1
 Global $trayMenuSettings = TrayCreateMenu("Settings")	; If a program play sound, active model random dances.
 _TrayMenuAddImage($hIcons[5], $iMenuItem)
 ; Global $traySubChkDanceWithProgram = TrayCreateItem("Dance with a Program's Music/Sound", $trayMenuSettings)	; $giDanceWithProgram
-Global $traySubChkDanceWithBackground = TrayCreateItem("Enable Dance with Background/Effect", $trayMenuSettings)				; $giDanceWithBackground
-If $giDanceWithBackground = 1 Then TrayItemSetState($traySubChkDanceWithBackground, $TRAY_CHECKED)
-Global $traySubChkRandomBackground = TrayCreateItem("Random Background", $trayMenuSettings) 	; $giDanceRandomBackground
-If $giDanceRandomBackground = 1 Then TrayItemSetState($traySubChkRandomBackground, $TRAY_CHECKED)
+Global $traySubChkDanceWithBg = TrayCreateItem("Enable Dance with Background/Effect", $trayMenuSettings)				; $giDanceWithBg
+If $giDanceWithBg = 1 Then TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
 
 Global $traySubMenuActiveMonitor = TrayCreateMenu("Show Background on Monitor", $trayMenuSettings)
 Global $trayMonitors[ $gaMonitors[0][0] ]
@@ -255,31 +263,25 @@ while True
 				RefreshModelListMenu()
 			EndIf
 
-		Case $traySubChkDanceWithBackground
-			If $giDanceWithBackground = 0 Then
+		Case $traySubChkDanceWithBg
+			If $giDanceWithBg = 0 Then
 				; Enable dance with Background / Effects.
-				TrayItemSetState($traySubChkDanceWithBackground, $TRAY_CHECKED)
-				$giDanceWithBackground = 1
-				TrayItemSetState($traySubChkRandomBackground, $TRAY_CHECKED)
-				$giDanceRandomBackground = 1
+				TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
+				$giDanceWithBg = 1
+				TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
+				$giDanceRandomBg = 1
 			Else
 				; Disable dance with Background / Effects.
-				TrayItemSetState($traySubChkDanceWithBackground, $TRAY_UNCHECKED)
-				$giDanceWithBackground = 0
-				TrayItemSetState($traySubChkRandomBackground, $TRAY_UNCHECKED)
-				$giDanceRandomBackground = 0
+				TrayItemSetState($traySubChkDanceWithBg, $TRAY_UNCHECKED)
+				$giDanceWithBg = 0
+				TrayItemSetState($traySubChkRandomBg, $TRAY_UNCHECKED)
+				$giDanceRandomBg = 0
 			EndIf
 			SaveSettings()
-		Case $traySubChkRandomBackground
-			If $giDanceRandomBackground = 0 Then
-				; Enable random background
-				TrayItemSetState($traySubChkRandomBackground, $TRAY_CHECKED)
-				$giDanceRandomBackground = 1
-			Else
-				; Disable random background
-				TrayItemSetState($traySubChkRandomBackground, $TRAY_UNCHECKED)
-				$giDanceRandomBackground = 0
-			EndIf
+		Case $traySubChkRandomBg
+			; Enable random background
+			$giDanceRandomBg = 1
+			$giCurrentBg = 0 	; No current bg
 			SaveSettings()
 		Case $traySubCmdStop
 			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".Interrupt" )
@@ -304,23 +306,40 @@ while True
 		EndIf
 	Next
 
+	; Check background list items
+	For $i = 1 to $traySubBgItems[0]
+		If $nTrayMsg = $traySubBgItems[$i] Then
+			$giDanceRandomBg = 0
+			$giCurrentBg = $i
+			If $gbDanceExtraPlaying Then
+				; Switch to current bg
+				$gsDanceExtra = @ScriptDir & "\Backgrounds\" & $gaBgList[$i] & "\extra.json"
+				StartDanceExtra()
+			EndIf
+		EndIf
+	Next
+
 	; Check $gsDanceExtra
 	If $gsDanceExtra <> "" Then
 		If $gsDanceExtra = "STOP" Then
 			StopDanceExtra(False)	; Slow fade out
 		ElseIf $gsDanceExtra = "RANDOM" Then
-			; Start a random background/effct $gaBackgroundList, $gaEffectList
-			If $giDanceRandomBackground = 1 Then
+			; Start a random background/effct $gaBgList, $gaEffectList
+			If $giDanceRandomBg = 1 Then
 				; Choose a random background
-				Local $sRandomFolder = @ScriptDir & "\Backgrounds\" & $gaBackgroundList[ Random( 1, $gaBackgroundList[0], 1) ]
+				Local $sRandomFolder = @ScriptDir & "\Backgrounds\" & $gaBgList[ Random( 1, $gaBgList[0], 1) ]
 				$gsDanceExtra = $sRandomFolder & "\extra.json"
+				StartDanceExtra()
+			ElseIf $giCurrentBg <> 0 Then
+				; Go with the desinated background
+				$gsDanceExtra = @ScriptDir & "\Backgrounds\" & $gaBgList[$giCurrentBg] & "\extra.json"
 				StartDanceExtra()
 			EndIf
 		Else
 			c("DanceExtra:" & $gsDanceExtra & "|" )
 			; Start a new extra
 			; Save the Extra string first
-			
+
 			if $gbDanceExtraPlaying Then
 				Local $sExtra = $gsDanceExtra
 				StopDanceExtra(True)	; Fast switch.
@@ -379,7 +398,7 @@ Func NotDoneYet()
 EndFunc
 
 Func LoadBackgroundList()
-	$gaBackgroundList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
+	$gaBgList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
 EndFunc
 
 Func StartDanceNext()
@@ -518,13 +537,13 @@ Func ProcessMessage($sProg, $sMessage)
 					Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
 					; c( "json to decode:" & $sJson)
 					AddModel( $iModelNo, $sJson )
-				Case $giDanceWithBackground = 1
+				Case $giDanceWithBg = 1
 					If StringInStr($sMessage, ".DanceReady", 1) <> 0 Then
 						; Time to start a dance. Check if Extra.json exist.
 						Local $sPath = GetFolderFromPath( StringAfter($sMessage, "|") )
 						If FileExists( $sPath & "\extra.json" ) Then ; The one with specified background/effects takes the priority
 							$gsDanceExtra = $sPath & "\extra.json"  ; Once $gsDanceExtra is set. It will be processed by the main loop.
-						ElseIf $giDanceWithBackground = 1 Then
+						ElseIf $giDanceWithBg = 1 Then
 							$gsDanceExtra = "RANDOM"		; Start random background / effect
 						EndIf
 					ElseIf StringInStr($sMessage, "DanceEnd", 1) <> 0 Then
@@ -707,15 +726,15 @@ Func InitSettings()
 	; This settings will be saved
 	$gsControlProg = "MMD3"
 	$giActiveMonitor = 1
-	$giDanceWithBackground = 1		; 0 : disable , 1: enable.
-	$giDanceRandomBackground = 1
+	$giDanceWithBg = 1		; 0 : disable , 1: enable.
+	$giDanceRandomBg = 1
 EndFunc
 
 Func SaveSettings()
 	RegWrite( $gsRegBase, "ControlProgram", "REG_SZ", $gsControlProg )
 	RegWrite( $gsRegBase, "ActiveMonitor", "REG_DWORD", $giActiveMonitor )
-	RegWrite( $gsRegBase, "DanceWithBackground", "REG_DWORD", $giDanceWithBackground )
-	RegWrite( $gsRegBase, "DanceRandomBackground", "REG_DWORD", $giDanceRandomBackground )
+	RegWrite( $gsRegBase, "DanceWithBackground", "REG_DWORD", $giDanceWithBg )
+	RegWrite( $gsRegBase, "DanceRandomBackground", "REG_DWORD", $giDanceRandomBg )
 EndFunc
 
 Func LoadGlobalSettings()
@@ -724,9 +743,9 @@ Func LoadGlobalSettings()
 	If @error Then Return False
 	$giActiveMonitor = RegRead($gsRegBase, "ActiveMonitor")
 	If @error Then Return False
-	$giDanceWithBackground = RegRead($gsRegBase, "DanceWithBackground")
+	$giDanceWithBg = RegRead($gsRegBase, "DanceWithBackground")
 	If @error Then Return False
-	$giDanceRandomBackground = RegRead($gsRegBase, "DanceRandomBackground")
+	$giDanceRandomBg = RegRead($gsRegBase, "DanceRandomBackground")
 	If @error Then Return False
 	Return True	; loaded
 EndFunc
@@ -763,7 +782,7 @@ Func SwitchBackground( $sBgFile)
 	; Now set the position of pic control, GUI should have set on the full work area.
 	; GUICtrlSetPos($picBackground, $aSize[0], $aSize[1], $aSize[2], $aSize[3])
 	; GUICtrlSetImage( $picBackground, $sBgFile )
-	
+
 	_GUICtrlStatic_SetPicture($picBackground, $sBgFile)
 	If @error Then Return Error(1, @ScriptLineNumber)
 
@@ -858,9 +877,9 @@ Func _GUICtrlStatic_SetPicture($Control, $File, $KeepRatio = False)
 
     Local $hBitmap = _GDIPlus_BitmapCreateHBITMAPFromBitmap($hResizedImage,0x00000000)
     If NOT IsHwnd($Control) Then $Control = GUICtrlGetHandle($Control)
-	
-	
-	
+
+
+
     Local $oldBitmap = _SendMessage($Control,$STM_SETIMAGE,$IMAGE_BITMAP,$hBitmap,0,"wparam","lparam","hwnd")
     IF $oldBitmap <> 0 Then
         _WinAPI_DeleteObject($oldBitmap)
@@ -895,12 +914,12 @@ EndFunc
 
 Func HideBackground($bFast = False)
 	; Fade out.
-	If Not $bFast Then 
+	If Not $bFast Then
 		For $i = 250 to 0 Step -25
 			WinSetTrans($guiDummy, "", $i)
 			Sleep(100)
 		Next
-	EndIf 
+	EndIf
   	GUISetState( @SW_HIDE, $guiDummy )
 	; GUICtrlSetImage( $picBackground, @ScriptDir & "\Images\empty.jpg" )
 	$gbBackgroundOn = False
