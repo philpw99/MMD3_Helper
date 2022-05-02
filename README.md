@@ -1,16 +1,11 @@
 # MMD3_Helper
 
- A GUI control console for [DesktopMMD3](https://store.steampowered.com/app/1480480/DesktopMMD3Miss_Fish/). Written in [AutoIt3](https://www.autoitscript.com/site/) script with the help of [awesome ISN AutoIt Studio](https://www.isnetwork.at/).
+ A helper program for [DesktopMagicEngine](https://store.steampowered.com/app/1096550/Desktop_Magic_Engine/), [DesktopMMD3](https://store.steampowered.com/app/1480480/DesktopMMD3Miss_Fish/) and the new [DesktopMMD4](https://store.steampowered.com/app/1968650/DesktopMMD4Born_to_Dance/) . Written in [AutoIt3](https://www.autoitscript.com/site/) script with the help of [awesome ISN AutoIt Studio](https://www.isnetwork.at/).
  
 Just switched to tray menu based programming instead of regular GUI:
 Currently working with the code to show the models that are loaded:
 
-![screen2](https://user-images.githubusercontent.com/22040708/164947859-63e94f75-582f-40d9-be5d-5babd6b59c11.jpg)
-
-
-The settings are simplified:
-
-![screen1](https://user-images.githubusercontent.com/22040708/164947891-5f7add0a-13fc-4617-b4dd-779c72b7d2df.jpg)
+![screen1](https://user-images.githubusercontent.com/22040708/166290853-4cd0d94e-871d-4b86-95e4-956f89f13e2f.jpg)
 
 More details will be in the Pateon page.
 
