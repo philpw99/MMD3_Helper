@@ -1,0 +1,9 @@
+﻿{
+  "name":"Confettishowergreenyellow",
+  "kind":"screen",
+  "src":"confettishowergreenyellow.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,4,0",
+  "ec":true
+}

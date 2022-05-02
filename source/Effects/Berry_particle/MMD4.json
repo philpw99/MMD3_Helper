@@ -1,0 +1,9 @@
+﻿{
+  "name":"Berry particle",
+  "kind":"screen",
+  "src":"berry particle.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,20,40",
+  "ec":true
+}

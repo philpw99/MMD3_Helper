@@ -1,0 +1,10 @@
+﻿{
+  "name":"Fireflies3",
+  "kind":"screen",
+  "src":"fireflies3.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,2.5,-17",
+  "rotation":"-90,0,0",
+  "ec":true
+}

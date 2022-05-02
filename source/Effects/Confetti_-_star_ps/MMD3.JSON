@@ -1,0 +1,9 @@
+﻿{
+  "name":"Confetti - star ps",
+  "kind":"screen",
+  "src":"confetti - star ps.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,7,0",
+  "ec":true
+}

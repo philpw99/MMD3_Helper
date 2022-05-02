@@ -1,0 +1,9 @@
+﻿{
+  "name":"Eriobotrya particle",
+  "kind":"screen",
+  "src":"eriobotrya particle.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,14,0",
+  "ec":true
+}

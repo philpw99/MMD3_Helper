@@ -1,0 +1,9 @@
+﻿{
+  "name":"Rainhardripple",
+  "kind":"screen",
+  "src":"rainhardripple.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,102,0",
+  "ec":true
+}

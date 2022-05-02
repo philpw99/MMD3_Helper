@@ -1,0 +1,9 @@
+﻿{
+  "name":"Blue petals particle",
+  "kind":"screen",
+  "src":"blue petals particle.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,20,40",
+  "ec":true
+}

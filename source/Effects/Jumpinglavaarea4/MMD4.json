@@ -1,0 +1,10 @@
+﻿{
+  "name":"Jumpinglavaarea4",
+  "kind":"screen",
+  "src":"jumpinglavaarea4.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,15,200"
+  "rotation":"-90,1,0",
+  "ec":true
+}

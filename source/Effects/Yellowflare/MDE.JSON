@@ -1,0 +1,9 @@
+﻿{
+  "name":"Yellowflare",
+  "kind":"screen",
+  "src":"yellowflare.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,-1.8,-17",
+  "ec":true
+}

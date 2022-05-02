@@ -185,6 +185,10 @@ $traySubBgItems[0] = $gaBgList[0]	; set the number of bk at [0]. Now $gaBgList a
 For $i = 1 To $gaBgList[0]
 	$traySubBgItems[$i] = TrayCreateItem( $gaBgList[$i], $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO )
 Next
+; Seperator
+TrayCreateItem("", $trayMenuChooseBg)
+; Open bg folder
+Global $traySubOpenBgFolder = TrayCreateItem("Open Background Folders", $trayMenuChooseBg)
 
 $iMenuItem += 1
 Global $trayMenuSettings = TrayCreateMenu("Settings")	; If a program play sound, active model random dances.
@@ -283,6 +287,10 @@ while True
 			$giDanceRandomBg = 1
 			$giCurrentBg = 0 	; No current bg
 			SaveSettings()
+		Case $traySubOpenBgFolder
+			; Open the background folder
+			ShellExecute( @ScriptDir & "\Backgrounds\" )
+			
 		Case $traySubCmdStop
 			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".Interrupt" )
 			If $gbDanceExtraPlaying Then StopDanceExtra()

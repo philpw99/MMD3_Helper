@@ -1,0 +1,10 @@
+﻿{
+  "name":"Leavesblowingyellow",
+  "kind":"screen",
+  "src":"leavesblowingyellow.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"-15,5,20",
+  "rotation":"0,90,0",
+  "ec":true
+}

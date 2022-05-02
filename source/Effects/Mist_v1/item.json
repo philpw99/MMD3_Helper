@@ -1,0 +1,9 @@
+﻿{
+  "name":"Mist_v1",
+  "kind":"screen",
+  "src":"mist_v1.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,-1,-18",
+  "ec":true
+}

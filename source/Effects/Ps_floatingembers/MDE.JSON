@@ -1,0 +1,9 @@
+﻿{
+  "name":"Ps_floatingembers",
+  "kind":"screen",
+  "src":"ps_floatingembers.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,0,-9",
+  "ec":true
+}

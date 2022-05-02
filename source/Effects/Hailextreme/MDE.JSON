@@ -1,0 +1,9 @@
+﻿{
+  "name":"Hailextreme",
+  "kind":"screen",
+  "src":"hailextreme.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,10,0",
+  "ec":true
+}

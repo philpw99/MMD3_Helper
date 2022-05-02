@@ -1,0 +1,9 @@
+﻿{
+  "name":"Cloudscalm",
+  "kind":"screen",
+  "src":"cloudscalm.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,40,256",
+  "rotation":"-90,0,0"
+}

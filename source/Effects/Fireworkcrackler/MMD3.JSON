@@ -1,0 +1,10 @@
+﻿{
+  "name":"Fireworkcrackler",
+  "kind":"screen",
+  "src":"fireworkcrackler.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,-30,100",
+  "rotation":"-90,0,0",
+  "ec":true
+}

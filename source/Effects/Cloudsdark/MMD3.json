@@ -1,0 +1,10 @@
+﻿{
+  "name":"Cloudsdark",
+  "kind":"screen",
+  "src":"cloudsdark.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,25,256",
+  "rotation":"-90,0,0",
+  "ec":true
+}

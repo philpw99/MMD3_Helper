@@ -1,0 +1,9 @@
+﻿{
+  "name":"Confetti - half circle ps",
+  "kind":"screen",
+  "src":"confetti - half circle ps.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,7,0",
+  "ec":true
+}

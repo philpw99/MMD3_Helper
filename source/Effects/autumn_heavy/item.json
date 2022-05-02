@@ -1,0 +1,9 @@
+﻿{
+  "name":"autumn_heavy",
+  "kind":"screen",
+  "src":"autumn_heavy.xef",
+  "scale":"0",
+  "position":"-2.5,4,-20",
+  "rotation":"-90,0,0",
+  "ec":true
+}

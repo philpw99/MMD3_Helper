@@ -1,0 +1,9 @@
+﻿{
+  "name":"Rain_withsplash_shuriken_prefab",
+  "kind":"screen",
+  "src":"rain_withsplash_shuriken_prefab.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"-10,35,0",
+  "ec":true
+}

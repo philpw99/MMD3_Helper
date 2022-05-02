@@ -1,0 +1,9 @@
+﻿{
+  "name":"Embers - medium moving",
+  "kind":"screen",
+  "src":"embers - medium moving.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,0,10",
+  "ec":true
+}

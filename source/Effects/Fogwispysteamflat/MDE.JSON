@@ -1,0 +1,10 @@
+﻿{
+  "name":"Fogwispysteamflat",
+  "kind":"screen",
+  "src":"fogwispysteamflat.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,6,0",
+  "rotation":"-90,0,0",
+  "ec":true
+}

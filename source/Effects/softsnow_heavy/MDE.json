@@ -1,0 +1,8 @@
+﻿{
+  "name":"softsnow_heavy",
+  "kind":"screen",
+  "src":"softsnow_heavy.xef",
+  "scale":"0",
+  "position":"0,25,-20",
+  "ec":true
+}
