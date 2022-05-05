@@ -1,0 +1,9 @@
+﻿{
+  "name":"Backgroundflare",
+  "kind":"screen",
+  "src":"backgroundflare.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,0.5,12.7"
+  "ec":true
+}

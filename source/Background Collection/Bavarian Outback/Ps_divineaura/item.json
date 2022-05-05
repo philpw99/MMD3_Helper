@@ -1,0 +1,9 @@
+﻿{
+  "name":"Ps_divineaura",
+  "kind":"screen",
+  "src":"ps_divineaura.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"0,-3,-4",
+  "ec":true
+}

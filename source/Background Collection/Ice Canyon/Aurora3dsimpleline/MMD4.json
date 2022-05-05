@@ -1,0 +1,9 @@
+﻿{
+  "name":"Aurora3dsimpleline",
+  "kind":"screen",
+  "src":"aurora3dsimpleline.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"-17,30,450",
+  "rotation":"0,122,0"
+}

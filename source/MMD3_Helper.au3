@@ -1,3 +1,6 @@
+#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Outfile_type=a3x
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 ;*****************************************
 ;MMD3_Helper.au3 by Philip Wang
 ;Created with ISN AutoIt Studio v. 1.13
@@ -25,20 +28,14 @@ opt("MustDeclareVars", 1)
 
 #Region Globals Initialization
 
-; Run only a single instance
-If AlreadyRunning() Then
-   MsgBox(48,"MMD3 Helper is still running.","MMD3 Helper is running. Maybe it had an error and froze. " & @CRLF _
-	  & "You can use the 'task manager' to force-close it." & @CRLF _
-	  & "Not recommend running two MMD3 Helper at the same time.",0)
-   Exit
-EndIf
-
-Global Const $gsVersion = "v1.0.3"
-Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & ", written by Philip Wang." _
-						   &@CRLF& "Extend the features of the Excellent DesktopMagicEngine, DesktopMMD3 and DesktopMMD4."
+Global Const $gsVersion = "v1.0.4"
 
 ; Registry path to save program settings.
 Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
+Global $gsMessageLog = ""
+
+; Language
+Global $gsLang = "Eng", $goLang
 
 ; Global settings
 Global $gsControlProg, $giActiveMonitor
@@ -80,10 +77,21 @@ Global Const $gsMMD4WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\works
 
 If Not LoadGlobalSettings() Then
 	; Run the initial settings form.
-	MsgBox( 0, "First time running", "Seems this is your first time running this program." _
-		 & @CRLF & "So all the settings are reset.", 20 )
 	InitSettings()
 	SaveSettings()
+	MsgBox( 0, T("First time running"), T("Seems this is your first time running this program.") _
+	 & @CRLF & T("So all the settings are reset."), 20 )
+EndIf
+
+Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & T(", written by Philip Wang.") _
+						   &@CRLF& T("Extend the features of the Excellent DesktopMagicEngine, DesktopMMD3 and DesktopMMD4.")
+
+; Run only a single instance
+If AlreadyRunning() Then
+   MsgBox(48,T("MMD3 Helper is still running."),T("MMD3 Helper is running. Maybe it had an error and froze. ") & @CRLF _
+	  & T("You can use the 'task manager' to force-close it.") & @CRLF _
+	  & T("Not recommend running two MMD3 Helper at the same time."),0)
+   Exit
 EndIf
 
 ; Backgrounds and Effects
@@ -164,14 +172,17 @@ _TrayMenuAddImage($hIcons[1], $iMenuItem)
 Global $traySubCmdStop = TrayCreateItem("Stop", $trayMenuCommands)
 Global $traySubCmdShowActive = TrayCreateItem("Show Active Model", $trayMenuCommands)
 Global $traySubCmdStartRandom = TrayCreateItem("Start Random Dance", $trayMenuCommands)
-
+Global $traySubCmdShowLog = TrayCreateItem("Show Message Log", $trayMenuCommands)
+Global $traySubCmdClearLog = TrayCreateItem("Clear Message Log", $trayMenuCommands)
 $iMenuItem += 1
 
 Global $trayMenuPlayList = TrayCreateMenu("Active Play List:")		; Add / remove / Play the songs in play list.
 _TrayMenuAddImage($hIcons[4], $iMenuItem)
-Global $traySubStartPlaylist = TrayCreateItem("Start Active Playlist", $trayMenuPlayList)
-Global $traySubStopPlaylist = TrayCreateItem("Stop Active Playlist", $trayMenuPlayList)
-Global $traySubManagePlaylist = TrayCreateItem("Manage Play Lists", $trayMenuPlayList)
+
+Global $traySubPlaylistStart = TrayCreateItem("Start Active Playlist", $trayMenuPlayList)
+Global $traySubPlaylistStop = TrayCreateItem("Stop Active Playlist", $trayMenuPlayList)
+Global $traySubPlaylistManage = TrayCreateItem("Manage Play Lists", $trayMenuPlayList)
+Global $traySubPlaylistAdd = TrayCreateItem("Add to Active Playlist", $trayMenuPlayList)
 
 $iMenuItem += 1
 Global $trayMenuChooseBg = TrayCreateMenu("Choose Background")
@@ -199,7 +210,8 @@ If $giDanceWithBg = 1 Then TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKE
 
 Global $traySubMenuActiveMonitor = TrayCreateMenu("Show Background on Monitor", $trayMenuSettings)
 Global $trayMonitors[ $gaMonitors[0][0] ]
-For $i = 1 To $gaMonitors[0][0]
+; List monitors
+For $i = 1 To $gaMonitors[0][0]	
 	$trayMonitors[$i-1] = TrayCreateItem( $gaMonitors[$i][2], $traySubMenuActiveMonitor, -1, $TRAY_ITEM_RADIO )
 Next
 TrayItemSetState($trayMonitors[$giActiveMonitor-1] , $TRAY_CHECKED )	 ; Set the active monitor.
@@ -290,6 +302,13 @@ while True
 		Case $traySubOpenBgFolder
 			; Open the background folder
 			ShellExecute( @ScriptDir & "\Backgrounds\" )
+		Case $traySubCmdShowLog
+			; Show the recent messsage/command log
+			FileWrite( @TempDir & "\messagelog.txt", $gsMessageLog)
+			ShellExecute( @TempDir & "\messagelog.txt")
+		Case $traySubCmdClearLog
+			; Clear the message/command log
+			$gsMessageLog = ""
 			
 		Case $traySubCmdStop
 			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".Interrupt" )
@@ -298,7 +317,7 @@ while True
 			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".active" )
 		Case $traySubCmdStartRandom
 			NotDoneYet()
-		Case $traySubStartPlaylist, $traySubStopPlaylist, $traySubManagePlaylist
+		Case $traySubPlaylistStart, $traySubPlaylistStop, $traySubPlaylistManage
 			NotDoneYet()
 		Case $trayTitle
 			About()
@@ -400,6 +419,12 @@ If $gbDanceExtraPlaying Then StopDanceExtra()
 Exit
 
 #Region Main Functions
+
+Func T($str)
+	; Implement different languages using dictionary
+	If $gsLang = "Eng" Then Return $str
+	Return $goLang.Item($str)
+EndFunc
 
 Func NotDoneYet()
 	MsgBox(0, "Not Done Yet", "This feature is not implemented yet. Maybe wait for the next version?" )
@@ -536,6 +561,10 @@ EndFunc
 ; $sMessage is the text they received.
 Func ProcessMessage($sProg, $sMessage)
 	c( $sProg & ":" & @CRLF & "-----" & @crlf & $sMessage & @CRLF & @CRLF )
+	
+	$gsMessageLog &= @CRLF & "-----" & @CRLF & "From " & $sProg & ":" & @CRLF & $sMessage
+	If StringLen($gsMessageLog) > 50000 Then $gsMessageLog = StringLeft($gsMessageLog, 40000) ; Keep the last 40k
+	
 	Switch $sProg
 		Case "MMD3Core", "DMECore", "MMD4Core"
 			Select 	; Handle the command message from mmd3core.
@@ -572,7 +601,7 @@ Func ProcessMessage($sProg, $sMessage)
 			EndSelect
 
 	EndSwitch
-
+	
 EndFunc
 
 Func StringAfter( $String, $Delimiter)
@@ -730,8 +759,25 @@ Func StringBtw($sFull, $str1, $str2, $case = 1)	; Default: case sensitive.
 	Return StringMid( $sFull, $iPos1, $iPos2-$iPos1+1 )
 EndFunc
 
+Func LoadLanguage()
+	If $gsLang = "Eng" Then Return
+	$goLang = ObjCreate('Scripting.Dictionary')
+	Local $hFile = FileOpen(@ScriptDir & "\Languages\" & $gsLang & ".txt")
+	If @error Then Return Error(1, @ScriptLineNumber)
+	
+	While True 
+		Local $sLine = FileReadLine($hFile)
+		If @error Then ExitLoop	; Exit the whole thing, it's the end of the file.
+		Local $iPos = StringInStr($sLine, Chr(9))	; First tab pos
+		Local $iPos2 = StringInStr($sLine, chr(9), 1, -1)	; Last tab pos
+		If $iPos = 0 Then ContinueLoop ; Read the next line
+		$goLang.Add( StringLeft($sLine, $iPos-1), StringMid( $sLine, $iPos2 + 1) )
+	WEnd 
+EndFunc
+
 Func InitSettings()
 	; This settings will be saved
+	$gsLang = "Eng"
 	$gsControlProg = "MMD3"
 	$giActiveMonitor = 1
 	$giDanceWithBg = 1		; 0 : disable , 1: enable.
@@ -740,6 +786,7 @@ EndFunc
 
 Func SaveSettings()
 	RegWrite( $gsRegBase, "ControlProgram", "REG_SZ", $gsControlProg )
+	RegWrite( $gsRegBase, "Language", "REG_SZ", $gsLang )
 	RegWrite( $gsRegBase, "ActiveMonitor", "REG_DWORD", $giActiveMonitor )
 	RegWrite( $gsRegBase, "DanceWithBackground", "REG_DWORD", $giDanceWithBg )
 	RegWrite( $gsRegBase, "DanceRandomBackground", "REG_DWORD", $giDanceRandomBg )
@@ -749,6 +796,10 @@ Func LoadGlobalSettings()
 	; return: Load successful  true/false
 	$gsControlProg = RegRead($gsRegBase, "ControlProgram") ; "MMD3" or "DME"
 	If @error Then Return False
+	$gsLang = RegRead($gsRegBase, "Language")	; Eng or Chs or Cht
+	If @error Then Return False
+	If $gsLang <> "Eng" Then LoadLanguage()
+	
 	$giActiveMonitor = RegRead($gsRegBase, "ActiveMonitor")
 	If @error Then Return False
 	$giDanceWithBg = RegRead($gsRegBase, "DanceWithBackground")

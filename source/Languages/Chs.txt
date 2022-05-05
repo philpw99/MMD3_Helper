@@ -1,0 +1,10 @@
+MMD3 Helper is still running.						MMD3 Helper还在运行当中。
+MMD3 Helper is running. Maybe it had an error and froze. 	MMD3 Helper还在运行当中。或许程序出现错误而死机了。
+You can use the 'task manager' to force-close it.		你可以用“任务控制员”来强制关掉它。
+Not recommend running two MMD3 Helper at the same time.	不推荐同时跑两个MMD3 Helper。
+Extend the features of the Excellent DesktopMagicEngine, DesktopMMD3 and DesktopMMD4.	增强萌娘系列软件的功能。
+, written by Philip Wang.						，作者：Philip Wang。
+First time running							第一次跑
+Seems this is your first time running this program.		看来这是第一次在这电脑跑这软件。
+So all the settings are reset.					因此所有的设定都会被重置。
+Status:					状态：

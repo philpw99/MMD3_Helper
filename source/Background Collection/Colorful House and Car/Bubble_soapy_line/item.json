@@ -1,0 +1,10 @@
+﻿{
+  "name":"Bubble soapy line",
+  "kind":"screen",
+  "src":"bubble soapy line.xef",
+  "scale":"1",
+  "duration":"3",
+  "position":"15,0,-6",
+  "rotation":"0,-90,0",
+  "ec":true
+}
