@@ -1,0 +1,16 @@
+model1.DancePause
+-----
+DanceReadyFinished|*_*|
+=====
+model1.DanceReadyAll:1_1_1|C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650\2802354882\shakeit.vmd
+First 1 means it's a file
+Second 1 means the IK is disabled
+Third 1 means the encoding is "ec" (utf8)
+; 1_1_1 is enable IK, 1_0_1 is disable IK.
+-----
+model1.DanceStart:1
+-----
+DanceEnd
+
+======
+model1.DanceReadyAll:1_0_1|C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650\2804951695\Apple Pie by ademar440.vmd

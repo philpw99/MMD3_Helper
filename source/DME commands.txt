@@ -1,3 +1,17 @@
+Random Dance:
+-----
+model1.DanceReadyAll:0_0|Short_Dance_08
+-----
+model1.DanceStart:1
+=====
+DanceReady:
+-----
+model1.DanceReadyAll:0_1|C:\Program Files (x86)\Steam\steamapps\workshop\content\1096550\2756747594\ndxrzka_vmd
+model1.DanceStart:1
+DanceEnd:
+model1.DanceEnd:1
+
+=====
 Load an effect in DME, The data was sent twice
 -----
 loadEffect:effect:{

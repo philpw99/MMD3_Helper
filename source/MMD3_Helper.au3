@@ -20,7 +20,13 @@
 #include <Array.au3>
 #include <File.au3>
 #include <GDIPlus.au3>	; To get the jpeg dimension only
+#include <WinAPICom.au3>	; For sound detection.
+#include <Process.au3>		; To get the process name
+#include <Sound.au3>		; To get the length of a music file.
+
 #include "Json.au3"
+
+
 
 opt("MustDeclareVars", 1)
 
@@ -28,7 +34,7 @@ opt("MustDeclareVars", 1)
 
 #Region Globals Initialization
 
-Global Const $gsVersion = "v1.0.4"
+Global Const $gsVersion = "v1.0.5"
 
 ; Registry path to save program settings.
 Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
@@ -42,8 +48,12 @@ Global $gsControlProg, $giActiveMonitor
 Global $gsTrayStatus = ""
 Global $giDanceWithBg, $giDanceRandomBg, $giCurrentBg
 Global $ghMMD, $giProgPID, $ghMMDProg
+Global $giRandomDanceWithSound, $gsSoundMonitorProg, $gbRandomDancePlaying = False
+Global $giRandomDanceTimeLimit, $ghRandomDanceTimer
 
 ; Signified a dance extra.json is going to be used.
+; Global $gaMMD3Dances[51]  $gaMMD4Dances[0]
+
 Global $gsDanceExtra = "", $ghDanceTimer, $gbDanceExtraPlaying = False
 Global $gaDanceData, $giDanceItem, $gfDanceTime, $gsDancePath
 
@@ -61,16 +71,8 @@ Global Enum $MODEL_ITEM_HANDLE, $MODEL_ITEM_NAME
 Global $gaModelMenuItems[0][2]		; Menu Item Handle and name, first one is always "Model List"
 Global $giActiveModelNo = 0		; 0 means active model is unknown.
 
-; These settings will be useful for playlist creation.
-Global Const $gsMMD3Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3"
-Global Const $gsMMD3AssetPath = $gsMMD3Path & "\Appdata\Assets"
-Global Const $gsMMD3WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480"
-Global Const $gsDMEPath = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMagicEngine"
-Global Const $gsDMEAssetPath = $gsDMEPath & "\Appdata\Assets"
-Global Const $gsDMEWorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1096550"
-Global Const $gsMMD4Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD4"
-Global Const $gsMMD4AssetPath = $gsMMD4Path & "\Appdata\Assets"
-Global Const $gsMMD4WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650"
+; Load all the global data, constants...etc
+#include "GlobalData.au3"
 
 ; Load forms below
 ; #include "Forms\Settings.au3"
@@ -79,8 +81,8 @@ If Not LoadGlobalSettings() Then
 	; Run the initial settings form.
 	InitSettings()
 	SaveSettings()
-	MsgBox( 0, T("First time running"), T("Seems this is your first time running this program.") _
-	 & @CRLF & T("So all the settings are reset."), 20 )
+	; MsgBox( 0, T("First time running"), T("Seems this is your first time running this program.") _
+	;  & @CRLF & T("So all the settings are reset."), 20 )
 EndIf
 
 Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & T(", written by Philip Wang.") _
@@ -100,6 +102,11 @@ Global $gaBgList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOL
 ; Get MMD3 or DME Handle and PID
 SetHandleAndPID()
 LoadBackgroundList()
+
+; If enable random dance and MMD4, get the list of all MMD4 dances.
+If $gsControlProg = "MMD4" and $giRandomDanceWithSound = 1 Then 
+	LoadMMD4Dances()
+EndIf
 
 #EndRegion Globals
 
@@ -200,13 +207,20 @@ Next
 TrayCreateItem("", $trayMenuChooseBg)
 ; Open bg folder
 Global $traySubOpenBgFolder = TrayCreateItem("Open Background Folders", $trayMenuChooseBg)
+Global $traySubGetMoreBg = TrayCreateItem("Get More Backgrounds...", $trayMenuChooseBg)
 
 $iMenuItem += 1
 Global $trayMenuSettings = TrayCreateMenu("Settings")	; If a program play sound, active model random dances.
 _TrayMenuAddImage($hIcons[5], $iMenuItem)
-; Global $traySubChkDanceWithProgram = TrayCreateItem("Dance with a Program's Music/Sound", $trayMenuSettings)	; $giDanceWithProgram
+
+
 Global $traySubChkDanceWithBg = TrayCreateItem("Enable Dance with Background/Effect", $trayMenuSettings)				; $giDanceWithBg
 If $giDanceWithBg = 1 Then TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
+
+; For Random dancing when a program is playing sound
+Global $traySubChkDanceWithSound = TrayCreateItem("Dance with a Program's Music/Sound", $trayMenuSettings)	; $giRandomDanceWithSound
+if $giRandomDanceWithSound = 1 Then TrayItemSetState($traySubChkDanceWithSound, $TRAY_CHECKED)
+
 
 Global $traySubMenuActiveMonitor = TrayCreateMenu("Show Background on Monitor", $trayMenuSettings)
 Global $trayMonitors[ $gaMonitors[0][0] ]
@@ -236,6 +250,9 @@ EndIf
 
 #Region Main Loop
 Local $hTimer1Sec = TimerInit()
+
+; Initialize COM usage.
+_WinAPI_CoInitialize()
 
 while True
 	Local $nTrayMsg = TrayGetMsg()
@@ -277,6 +294,9 @@ while True
 				; Clear the model list
 				Global $gaModels[0][3]
 				RefreshModelListMenu()
+				If $giRandomDanceWithSound = 1 And UBound($gaMMD4Dances) = 0 Then 
+					LoadMMD4Dances()
+				EndIf
 			EndIf
 
 		Case $traySubChkDanceWithBg
@@ -294,6 +314,17 @@ while True
 				$giDanceRandomBg = 0
 			EndIf
 			SaveSettings()
+			
+		Case $traySubChkDanceWithSound
+			; GUI to set the dance with sound 
+			DanceWithSoundSettings()
+			; Set the menu item status according to the new settings.
+			If $giRandomDanceWithSound = 1 Then 
+				TrayItemSetState( $traySubChkDanceWithSound, $TRAY_CHECKED)
+			Else
+				TrayItemSetState( $traySubChkDanceWithSound, $TRAY_UNCHECKED)
+			EndIf
+			
 		Case $traySubChkRandomBg
 			; Enable random background
 			$giDanceRandomBg = 1
@@ -302,6 +333,10 @@ while True
 		Case $traySubOpenBgFolder
 			; Open the background folder
 			ShellExecute( @ScriptDir & "\Backgrounds\" )
+			
+		Case $traySubGetMoreBg
+			ShellExecute( "https://github.com/philpw99/MMD3_Helper/tree/main/source/Background%20Collection" )
+			
 		Case $traySubCmdShowLog
 			; Show the recent messsage/command log
 			FileWrite( @TempDir & "\messagelog.txt", $gsMessageLog)
@@ -311,8 +346,7 @@ while True
 			$gsMessageLog = ""
 			
 		Case $traySubCmdStop
-			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".Interrupt" )
-			If $gbDanceExtraPlaying Then StopDanceExtra()
+			StopDance()
 		Case $traySubCmdShowActive
 			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".active" )
 		Case $traySubCmdStartRandom
@@ -416,9 +450,138 @@ Wend
 GUIDelete($guiDummy)
 CleanupHook()
 If $gbDanceExtraPlaying Then StopDanceExtra()
+; remove any COM usage.
+_WinAPI_CoUninitialize()
 Exit
 
 #Region Main Functions
+
+;	Loading other GUIs
+#include "Forms\DanceWithSound.au3"
+
+Func LoadMMD4Dances()
+	; This function will get the list of all MMD4 dances in the local workshop folder
+	Global $gsMMD4Dances[0]		; clear the array first.
+	Local $sPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650"
+	Local $aFolders = _FileListToArray( $sPath, "*", $FLTA_FOLDERS )
+	If @error Then
+		c("Error getting MMD4 workshop folder:" & @error)
+		Return
+	EndIf
+
+	For $i = 1 To UBound($aFolders)-1
+		Local $aFiles = _FileListToArray($sPath & "\" & $aFolders[$i] , "*.vmd", $FLTA_FILES, True )
+		If @error=4 Then
+			ContinueLoop	; File not found.
+		ElseIf @error=1 Then
+		  c("error in getting a subfolder in MMD4.")
+		  ExitLoop
+		EndIf
+		; One or more files found
+		Local $iCount = UBound( $gaMMD4Dances )
+		ReDim $gaMMD4Dances[ $iCount+$aFiles[0] ]
+		For $j=1 to $aFiles[0]
+			$gaMMD4Dances[$iCount+$j-1]=$aFiles[$j]
+		Next
+	Next
+EndFunc
+
+
+; Get the list of PIDs that have sound playing.
+; If no sound, return an empty array.
+Func GetAppsPlayingSound()
+    Local $pIAudioSessionManager2 = 0
+    Local $pIAudioSessionEnumerator = 0
+    Local $nSessions = 0
+	
+	
+    Local $aApp[0]
+    Local $pIAudioSessionControl2 = 0
+    Local $oIAudioSessionControl2 = 0
+    Local $oIAudioMeterInformation = 0
+    Local $iProcessID = 0
+    Local $fPeakValue = 0
+    Local $iState = 0
+    Local $iVolume = 0
+	
+    Static $oMMDeviceEnumerator = 0	
+    Static $pIMMDevice = 0
+    Static $oMMDevice = 0
+    Static $oIAudioSessionManager2 = 0
+	Static $oIAudioSessionEnumerator = 0
+
+
+	$oMMDeviceEnumerator = ObjCreateInterface($gsCLSID_MMDeviceEnumerator, $gsIID_IMMDeviceEnumerator, $gsTagIMMDeviceEnumerator)
+	If @error Then 
+		c("error in Creating $oMMDeviceEnumerator")
+		Return $aApp
+	EndIf
+
+	Local $iRet = $oMMDeviceEnumerator.GetDefaultAudioEndpoint($geRender, $geMultimedia, $pIMMDevice)
+	If $iRet < 0 Then 
+	   c("Error in GetDefaultAudioEndpoint")
+	   Return $aApp
+	EndIf
+   
+	$oMMDevice = ObjCreateInterface($pIMMDevice, $gsIID_IMMDevice, $gsTagIMMDevice)
+	If @error Then 
+		c("Error in creating $oMMDevice")
+		Return $aApp
+	EndIf
+
+	$oMMDevice.Activate($gsIID_IAudioSessionManager2, $CLSCTX_INPROC_SERVER, 0, $pIAudioSessionManager2)
+	$oIAudioSessionManager2 = ObjCreateInterface($pIAudioSessionManager2, $gsIID_IAudioSessionManager2, $gsTagIAudioSessionManager2)
+	if @error Then 
+		c("error creating $oIAudioSessionManager2")
+		Return $aApp
+	EndIf
+	
+	$oIAudioSessionManager2.GetSessionEnumerator($pIAudioSessionEnumerator)
+	$oIAudioSessionEnumerator = ObjCreateInterface($pIAudioSessionEnumerator, $gsIID_IAudioSessionEnumerator, $gsTagIAudioSessionEnumerator)
+	if @error Then 
+		c("error creating $oIAudioSessionEnumerator")
+		Return $aApp
+	EndIf
+	
+	If Not IsObj( $oIAudioSessionEnumerator ) Then 
+		c("Error using $oIAudioSessionEnumerator")
+		Return $aApp
+	EndIf
+	
+	$oIAudioSessionEnumerator.GetCount($nSessions)
+
+	For $i = 0 To $nSessions - 1
+		$oIAudioSessionEnumerator.GetSession($i, $pIAudioSessionControl2)
+		$oIAudioSessionControl2 = ObjCreateInterface($pIAudioSessionControl2, $gsIID_IAudioSessionControl2, $gsTagIAudioSessionControl2)
+		$oIAudioSessionControl2.GetState($iState)
+		If $iState = $geAudioSessionStateActive Then
+			$oIAudioSessionControl2.GetProcessId($iProcessID)
+			$oIAudioMeterInformation = ObjCreateInterface($pIAudioSessionControl2, $gsIID_IAudioMeterInformation, $gsTagIAudioMeterInformation)
+			$oIAudioSessionControl2.AddRef
+			$oIAudioMeterInformation.GetPeakValue($fPeakValue)
+			If $fPeakValue > 0 Then
+				; Has sound, add it to the list.
+				Local $iCount = UBound($aApp)
+				ReDim $aApp[$iCount + 1]
+				$aApp[$iCount] = $iProcessID	; Add the PID to the array.
+			EndIf
+		EndIf
+		$fPeakValue = 0
+		$iState = 0
+		$iProcessID = 0
+		$oIAudioMeterInformation = 0
+		$oIAudioSessionControl2 = 0
+	Next
+	
+;~ 	$oIAudioSessionEnumerator = 0
+;~ 	$oIAudioSessionManager2 = 0
+;~ 	$oMMDevice = 0
+;~ 	$oMMDeviceEnumerator = 0
+
+;	If UBound($aApp) = 0 Then $aApp = 0
+	Return $aApp
+
+EndFunc   ;==> GetAppsPlayingSound
 
 Func T($str)
 	; Implement different languages using dictionary
@@ -782,6 +945,8 @@ Func InitSettings()
 	$giActiveMonitor = 1
 	$giDanceWithBg = 1		; 0 : disable , 1: enable.
 	$giDanceRandomBg = 1
+	$giRandomDanceWithSound = 0
+	$gsSoundMonitorProg = "vlc.exe"
 EndFunc
 
 Func SaveSettings()
@@ -790,6 +955,8 @@ Func SaveSettings()
 	RegWrite( $gsRegBase, "ActiveMonitor", "REG_DWORD", $giActiveMonitor )
 	RegWrite( $gsRegBase, "DanceWithBackground", "REG_DWORD", $giDanceWithBg )
 	RegWrite( $gsRegBase, "DanceRandomBackground", "REG_DWORD", $giDanceRandomBg )
+	RegWrite( $gsRegBase, "RandomDanceWithSound", "REG_DWORD", $giRandomDanceWithSound )
+	RegWrite( $gsRegBase, "SoundMonitorProgram", "REG_SZ", $gsSoundMonitorProg )
 EndFunc
 
 Func LoadGlobalSettings()
@@ -806,6 +973,10 @@ Func LoadGlobalSettings()
 	If @error Then Return False
 	$giDanceRandomBg = RegRead($gsRegBase, "DanceRandomBackground")
 	If @error Then Return False
+	$giRandomDanceWithSound = RegRead($gsRegBase, "RandomDanceWithSound")
+	If @error Then Return False
+	$gsSoundMonitorProg = RegRead($gsRegBase, "SoundMonitorProgram")
+	If @error Then Return False
 	Return True	; loaded
 EndFunc
 
@@ -817,11 +988,16 @@ Func CalcBackgroundPos($iX, $iY)
 	Local $iOutX, $iOutY = Floor( $iY * $fPicScale )
 	Local $iLeft = 0, $iTop = 0
 	If $iOutY > $iScreenY Then
-		; Height is too much
-		; This is a portrait picture
-		$iOutX = Floor( $iScreenY * $fRatio )
-		$iOutY = $iScreenY
-		$iLeft = Floor( ($iScreenX - $iOutX) / 2 )
+		; Height is too much. This is a possible portrait picture
+		If ($iScreenX - $iScreenY*$fRatio) < ($iScreenX / 3) Then
+			; The left space is less than 1/6 of whole screen. So set it full screen
+			$iOutX = $iScreenX
+		Else
+			; Portrait picture.
+			$iOutX = Floor( $iScreenY * $fRatio )
+			$iLeft = Floor( ($iScreenX - $iOutX) / 2 )
+			$iOutY = $iScreenY
+		EndIf
 	Else
 		; Height is not enough for screen.So center it vertically
 		$iOutX = $iScreenX
@@ -1069,8 +1245,249 @@ Func CheckEverySecond()
 	If Not $bHook Then ReHook()
 	SetHandleAndPID()	; Check to see if MMD3 or DME still running.
 	CheckStatus()			; Set the status text.
+	If $giRandomDanceWithSound = 1 Then 
+		MonitorProgSound()
+	EndIf
+EndFunc
+
+Func MonitorProgSound()
+	; Global $gbRandomDancePlaying
+	; Global $giRandomDanceTimeLimit, $ghRandomDanceTimer
+	
+	; Get the array of PIDs that's playing sound.
+	Local $aApps = GetAppsPlayingSound()
+	If UBound($aApps) = 0 Then 
+		; No music is playing at all.
+		If $gbRandomDancePlaying Then 
+			$gbRandomDancePlaying = False 
+			; Stop the background and effect
+			StopDance()
+		EndIf
+	Else 
+		; Some sound is playing.
+		Local $iPID = ProcessExists($gsSoundMonitorProg)
+		If $iPID = 0 Then 
+			; Monitored prog is not running.
+			If $gbRandomDancePlaying Then 
+				$gbRandomDancePlaying = False 
+				; Stop the background and effect
+				StopDance()
+			EndIf
+		Else 
+			; Monitored prog is running.
+			Local $iCount = UBound($aApps)
+			For $i = 0 to $iCount -1
+				Local $sProcessName = _ProcessGetName ( $aApps[$i] )
+				If $sProcessName = $gsSoundMonitorProg Then 
+					; The prog is playing sound.
+					If Not $gbRandomDancePlaying Then 
+						$gbRandomDancePlaying = True
+						StartRandomDancing()
+					Else
+						; Check to see if the current one expire
+						If $giRandomDanceTimeLimit < TimerDiff($ghRandomDanceTimer) Then
+							; Current one expire, start a new random dance.
+							StartRandomDancing()
+						EndIf
+					EndIf
+				Else 
+					; The prog is not playing sound.
+					If $gbRandomDancePlaying Then 
+						$gbRandomDancePlaying = False 
+						StopDance()
+					EndIf
+						
+				EndIf
+			Next
+		EndIf
+	EndIf
+	
+EndFunc
+
+Func StartRandomDancing()
+	; Global $giRandomDanceTimeLimit, $ghRandomDanceTimer
+	$gbRandomDancePlaying = True 
+	Switch $gsControlProg
+		
+		Case "MMD4"
+			Local $iCount = UBound($gaMMD4Dances)
+			If $iCount = 0 Then
+				LoadMMD4Dances()	; Just in case
+				$iCount = UBound($gaMMD4Dances)
+			EndIf
+			
+			If $gbRandomDancePlaying Then 
+				; Stop the previous random dance.
+				SendCommand( $ghHelperHwnd, $ghMMD, "DanceEnd")
+			EndIf
+			; Randomly choose a dance.
+			Local $sDanceFile = $gaMMD4Dances[Random(0, $iCount-1, 1)]
+			c("start random dance:" & $sDanceFile)
+			StartDance($sDanceFile)
+		
+		Case "MMD3"
+			Local $iCount = UBound($gaMMD3Dances)
+			Local $sDance = $gaMMD3Dances[ Random(0, $iCount-1, 1) ]
+			Local $sModel
+			If UBound($gaModels = 0) Then 
+				; No model detected yet.
+				$sModel = "model1"
+			Else
+				$sModel = "model" & $giActiveModelNo
+			EndIf
+			
+			if $gbRandomDancePlaying Then 
+				; Stope the previous random dance
+				SendCommand( $ghHelperHwnd, $ghMMD, $sModel & ".DanceEnd:1")
+			EndIf
+			
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceReadyAll:0_0|" & $sDance )
+			Sleep(100)
+			
+			; Each random dance will last 60 seconds
+			$giRandomDanceTimeLimit = 60000
+			$ghRandomDanceTimer = TimerInit()
+			
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceStart:1" )
+		
+		Case "DME"
+			Local $iCount = UBound($gaDMEDances)
+			Local $sDance = $gaDMEDances[ Random(0, $iCount-1, 1) ]
+			Local $sModel
+			If UBound($gaModels = 0) Then 
+				; No model detected yet.
+				$sModel = "model1"
+			Else
+				$sModel = "model" & $giActiveModelNo
+			EndIf
+			
+			if $gbRandomDancePlaying Then 
+				; Stope the previous random dance
+				SendCommand( $ghHelperHwnd, $ghMMD, $sModel & ".DanceEnd:1")
+			EndIf
+			
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceReadyAll:0_0|" & $sDance )
+			Sleep(100)
+			
+			; Each random dance will last 60 seconds
+			$giRandomDanceTimeLimit = 60000
+			$ghRandomDanceTimer = TimerInit()
+
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceStart:1" )
+	EndSwitch
 
 EndFunc
+
+Func StartDance($sDanceFile)
+	; Launch a dance with a dance file. This cannot be used for built-in.
+	; The dance file needs to be full path
+	Switch $gsControlProg
+		Case "MMD4"
+			; Get the info about a dance.
+			c("file:" & GetFolderFromPath($sDanceFile) & "\item.json")
+			Local $sInfo = FileRead( GetFolderFromPath($sDanceFile) & "\item.json")
+			if @error Then Return Error(1, @ScriptLineNumber)
+			Local $oInfo = Json_Decode($sInfo)
+			If @error or Not IsObj($oInfo) Then Return Error(2, @ScriptLineNumber)
+			Local $sFirst = "1", $sSecond = "0", $sThird = "0"
+			; if $oInfo.Item("isFile") = True Then $sFirst = "1"
+			If $oInfo.Item("disabledIK") Then $sSecond = "1"
+			if $oInfo.Item("ec") Then $sThird = "1"
+			Local $sCommand = $sFirst & "_" & $sSecond & "_" & $sThird & "|" & GetFolderFromPath($sDanceFile) & "\" & $oInfo.Item("src")
+			c("Command:" & $sCommand)
+			Local $sModel
+			If UBound($gaModels) = 0 Then 
+				; No model detected yet.
+				$sModel = "model1"
+			Else
+				; Set it to the active model.
+				$sModel = "model" & $giActiveModelNo
+			EndIf
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceReadyAll:" & $sCommand)
+			; For random dance only
+			; Global $giRandomDanceTimeLimit, $ghRandomDanceTimer
+			If $gbRandomDancePlaying Then 
+				; Get the milliseconds of the music length
+				c("audio file: " & GetFolderFromPath($sDanceFile) & "\" & $oInfo.Item("audio") )
+				Local $aSound = _SoundOpen( GetFolderFromPath($sDanceFile) & "\" & $oInfo.Item("audio") )
+				If @error Then 
+					; Error in opening that file, just give it 1 second for next random song.
+					$giRandomDanceTimeLimit = 1000
+				Else 
+					; Successfully open the sound file.
+					$giRandomDanceTimeLimit = _SoundLength( $aSound , 2) 
+				EndIf
+				
+				$ghRandomDanceTimer = TimerInit()
+				c("Random Dance Limit:" & Floor($giRandomDanceTimeLimit / 1000) )
+			EndIf
+			
+			Sleep(100)
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceStart:1")
+			
+		Case "MMD3", "DME"
+			; Get the info about a dance.
+			Local $sInfo = FileRead( GetFolderFromPath( $sDanceFile ) & "\item.json")
+			if @error Then Return Error(1, @ScriptLineNumber)
+			Local $oInfo = Json_Decode($sInfo)
+			If @error or Not IsObj($oInfo) Then Return Error(2, @ScriptLineNumber)
+			
+			Local $sFirst = "0", $sSecond = "0"	; Only the second digit is meaningful
+			if $oInfo.Item("initialRotation") <> "" Then 
+				$sFirst = $oInfo.Item("initialRotation")
+			EndIf
+			if $oInfo.Item("ec") = True Then $sSecond = "1"
+			Local $sCommand = $sFirst & "_" & $sSecond & "|" & GetFolderFromPath($sDanceFile) & "\" & $oInfo.Item("src")
+			Local $sModel
+			If UBound($gaModels) = 0 Then 
+				; No model detected yet.
+				$sModel = "model1"
+			Else
+				; Set it to the active model.
+				$sModel = "model" & $giActiveModelNo
+			EndIf
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceReadyAll:" & $sCommand)
+			
+			; For random dance only
+			; Global $giRandomDanceTimeLimit, $ghRandomDanceTimer
+			If $gbRandomDancePlaying Then 
+				; Get the milliseconds of the music length
+				
+				Local $aSound = _SoundOpen( GetFolderFromPath($sDanceFile) & "\" & $oInfo.Item("audio") )
+				If @error Then 
+					; Error in opening that file, just give it 1 second for next random song.
+					$giRandomDanceTimeLimit = 1000
+				Else 
+					; Successfully open the sound file.
+					$giRandomDanceTimeLimit = _SoundLength( $aSound , 2) 
+				EndIf
+				c("Random Dance Limit:" & Floor($giRandomDanceTimeLimit / 1000) )
+				$ghRandomDanceTimer = TimerInit()
+			EndIf
+
+			Sleep(100)
+			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceStart:1")
+			
+	EndSwitch
+EndFunc
+
+
+Func StopDance()
+	Switch $gsControlProg
+		Case "MMD4"
+			SendCommand( $ghHelperHwnd, $ghMMD, "DanceEnd")
+		Case "MMD3", "MDE"
+			If UBound($gaModels) = 0 Then 
+				SendCommand( $ghHelperHwnd, $ghMMD, "model1.DanceEnd:1" )
+			Else
+				SendCommand( $ghHelperHwnd, $ghMMD, "model" & $gaModels[0][$MODEL_NO] & ".DanceEnd:1" )
+			EndIf
+	EndSwitch
+	If $gbDanceExtraPlaying Then 
+		StopDanceExtra()
+	EndIf
+EndFunc
+
 
 Func About()
 	MsgBox(0, "About MMD3/DME Helper " & $gsVersion, $gsAboutText )
