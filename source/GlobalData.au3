@@ -2,16 +2,17 @@
 ; Here store all the static global data, constants...
 
 ; These settings will be useful for playlist creation.
-Global Const $gsMMD3Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD3"
+Global Const $gsSteamPath = StringReplace ( RegRead("HKEY_CURRENT_USER\Software\Valve\Steam","SteamPath") , "/", "\" )
+Global Const $gsMMD3Path = $gsSteamPath & "\steamapps\common\DesktopMMD3"
 Global Const $gsMMD3AssetPath = $gsMMD3Path & "\Appdata\Assets"
-Global Const $gsMMD3WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1480480"
-Global Const $gsDMEPath = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMagicEngine"
+Global Const $gsMMD3WorkshopPath = $gsSteamPath & "\steamapps\workshop\content\1480480"
+Global Const $gsDMEPath = $gsSteamPath & "\steamapps\common\DesktopMagicEngine"
 Global Const $gsDMEAssetPath = $gsDMEPath & "\Appdata\Assets"
-Global Const $gsDMEWorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1096550"
-Global Const $gsMMD4Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD4"
+Global Const $gsDMEWorkshopPath = $gsSteamPath & "\steamapps\workshop\content\1096550"
+Global Const $gsMMD4Path = $gsSteamPath & "\steamapps\common\DesktopMMD4"
 Global Const $gsMMD4AssetPath = $gsMMD4Path & "\Appdata\Assets"
-Global Const $gsMMD4WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650"
-Global Const $gsMMD4IdleActionPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650\2808241801"
+Global Const $gsMMD4WorkshopPath = $gsSteamPath & "\steamapps\workshop\content\1968650"
+Global Const $gsMMD4IdleActionPath = $gsSteamPath & "\steamapps\workshop\content\1968650\2808595805"
 
 ; This is to establish MMD3 random dance data
 Global $gaMMD3Dances[51]
@@ -46,7 +47,7 @@ For $i = 1 to 8
 Next
 
 ; This is for MMD4 random dance data, the data will get auto filled on runtime.
-Global $gaMMD4Dances[0]			
+Global $gaMMD4Dances[0]
 
 ; Below is for a program's Sound Detection
 Global Const $CLSCTX_INPROC_SERVER = 0x01 + 0x02 + 0x04 + 0x10
