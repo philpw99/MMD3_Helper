@@ -26,8 +26,6 @@
 
 #include "Json.au3"
 
-
-
 opt("MustDeclareVars", 1)
 
 #include "TrayMenuEx.au3"
@@ -49,7 +47,10 @@ Global $gsTrayStatus = ""
 Global $giDanceWithBg, $giDanceRandomBg, $giCurrentBg
 Global $ghMMD, $giProgPID, $ghMMDProg
 Global $giRandomDanceWithSound, $gsSoundMonitorProg, $gbRandomDancePlaying = False
-Global $giRandomDanceTimeLimit, $ghRandomDanceTimer
+Global $giRandomDanceTimeLimit, $ghRandomDanceTimer	; for use with random dance with sound
+
+Global $gbProgDancePlaying = False ; MMD program is playing a dance
+Global $giRandomIdleAction 		; 0 disable, 1 misc actions, 2 idle actions
 
 ; Signified a dance extra.json is going to be used.
 ; Global $gaMMD3Dances[51]  $gaMMD4Dances[0]
@@ -61,11 +62,12 @@ Global $ghHelperHwnd = WinGetHandle( AutoItWinGetTitle(), "")
 c ( "Helper handle:" & $ghHelperHwnd )
 Global $giHelperPID = WinGetProcess($ghHelperHwnd)
 c ( "Helper PID:" & $giHelperPID )
-Global $gbProgRunning = False 	; The MMD3 or DME is running?
+Global $gbMMDProgRunning = False 	; The MMD3 or DME is running?
 
 ; Model number and model object data created by json.
-Global Enum $MODEL_NO, $MODEL_NAME, $MODEL_OBJ
-Global $gaModels[0][3]		; Models loaded in memory.
+; action timer is the timer handle to see last time it did random action, ACTIONTIMELIMIT is how long to wait for the next action.
+Global Enum $MODEL_NO, $MODEL_NAME, $MODEL_OBJ, $MODEL_ACTIONTIMER, $MODEL_ACTIONLENGTH, $MODEL_NEXTACTIONTIME
+Global $gaModels[0][6]		; Models loaded in memory.
 
 Global Enum $MODEL_ITEM_HANDLE, $MODEL_ITEM_NAME
 Global $gaModelMenuItems[0][2]		; Menu Item Handle and name, first one is always "Model List"
@@ -96,12 +98,19 @@ If AlreadyRunning() Then
    Exit
 EndIf
 
-; Backgrounds and Effects
-Global $gaBgList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
-
 ; Get MMD3 or DME Handle and PID
 SetHandleAndPID()
+; Load other things.
+Global $gaBgList, $gaIdleActions, $gaMiscActions
+Global $gsLastActionCommand = ""	; To avoid background and effect loading.
 LoadBackgroundList()
+
+If Not LoadIdleActions() And $giRandomIdleAction > 0 Then 
+	MsgBox( 0, "Get the workshop item", "Sorry, but for idle actions to work, you need to subscribe to a workshop item. Click ok and I will open the item's page. " )
+	ShellExecute( "https://steamcommunity.com/sharedfiles/filedetails/?id=2808055425" )
+EndIf
+
+; _ArrayDisplay($gaIdleActions)
 
 ; If enable random dance and MMD4, get the list of all MMD4 dances.
 If $gsControlProg = "MMD4" and $giRandomDanceWithSound = 1 Then 
@@ -183,6 +192,24 @@ Global $traySubCmdShowLog = TrayCreateItem("Show Message Log", $trayMenuCommands
 Global $traySubCmdClearLog = TrayCreateItem("Clear Message Log", $trayMenuCommands)
 $iMenuItem += 1
 
+; For Random action when idling
+Global $trayMenuIdleAction = TrayCreateMenu("MMD4 Idle Actions") ; $iRandomIdleAction
+_TrayMenuAddImage($hIcons[2], $iMenuItem)
+; submenu for idle action option
+Global $traySubIdleDisable = TrayCreateItem("Disable", $trayMenuIdleAction, -1, $TRAY_ITEM_RADIO )
+Global $traySubIdleMisc = TrayCreateItem("Misc Actions", $trayMenuIdleAction, -1, $TRAY_ITEM_RADIO )
+Global $traySubIdleIdle = TrayCreateItem("Idle Actions", $trayMenuIdleAction, -1, $TRAY_ITEM_RADIO )
+Switch $giRandomIdleAction
+	Case 0
+		TrayItemSetState($traySubIdleDisable, $TRAY_CHECKED)
+	Case 1
+		TrayItemSetState($traySubIdleMisc, $TRAY_CHECKED)
+	Case 2
+		TrayItemSetState($traySubIdleIdle, $TRAY_CHECKED)
+EndSwitch
+
+
+$iMenuItem += 1
 Global $trayMenuPlayList = TrayCreateMenu("Active Play List:")		; Add / remove / Play the songs in play list.
 _TrayMenuAddImage($hIcons[4], $iMenuItem)
 
@@ -199,10 +226,12 @@ If $giDanceRandomBg = 1 Then TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED
 ; TrayCreateItem("", $trayMenuChooseBg)	; Seperator
 Global $traySubBgItems[ $gaBgList[0]+1 ]
 $traySubBgItems[0] = $gaBgList[0]	; set the number of bk at [0]. Now $gaBgList and $traySubBgItems are 1 to 1.
+
 ; Create the background menu list
 For $i = 1 To $gaBgList[0]
 	$traySubBgItems[$i] = TrayCreateItem( $gaBgList[$i], $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO )
 Next
+
 ; Seperator
 TrayCreateItem("", $trayMenuChooseBg)
 ; Open bg folder
@@ -221,7 +250,7 @@ If $giDanceWithBg = 1 Then TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKE
 Global $traySubChkDanceWithSound = TrayCreateItem("Dance with a Program's Music/Sound", $trayMenuSettings)	; $giRandomDanceWithSound
 if $giRandomDanceWithSound = 1 Then TrayItemSetState($traySubChkDanceWithSound, $TRAY_CHECKED)
 
-
+; Show background on which screen
 Global $traySubMenuActiveMonitor = TrayCreateMenu("Show Background on Monitor", $trayMenuSettings)
 Global $trayMonitors[ $gaMonitors[0][0] ]
 ; List monitors
@@ -268,7 +297,7 @@ while True
 				SaveSettings()
 				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
 				; Clean the model list
-				Global $gaModels[0][3]
+				Global $gaModels[0][6]
 				RefreshModelListMenu()
 			EndIf
 		Case $traySubDME
@@ -280,7 +309,7 @@ while True
 				SaveSettings()
 				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
 				; Clear the model list
-				Global $gaModels[0][3]
+				Global $gaModels[0][6]
 				RefreshModelListMenu()
 			EndIf
 		Case $traySubMMD4
@@ -292,7 +321,7 @@ while True
 				SaveSettings()
 				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
 				; Clear the model list
-				Global $gaModels[0][3]
+				Global $gaModels[0][6]
 				RefreshModelListMenu()
 				If $giRandomDanceWithSound = 1 And UBound($gaMMD4Dances) = 0 Then 
 					LoadMMD4Dances()
@@ -337,6 +366,32 @@ while True
 		Case $traySubGetMoreBg
 			ShellExecute( "https://github.com/philpw99/MMD3_Helper/tree/main/source/Background%20Collection" )
 			
+		Case $traySubIdleDisable
+			$giRandomIdleAction = 0
+			SaveSettings()
+		Case $traySubIdleMisc
+			$giRandomIdleAction = 1
+			If UBound($gaMiscActions) = 0 Then 
+				If Not LoadIdleActions() Then
+					TraySetState( $traySubIdleDisable, $TRAY_CHECKED)
+					$giRandomIdleAction = 0
+					MsgBox( 0, "Get the workshop item", "Sorry, but for idle actions to work, you need to subscribe to a workshop item. Click ok and I will open the item's page. " )
+					ShellExecute( "https://steamcommunity.com/sharedfiles/filedetails/?id=2808241801" )
+				EndIf
+			EndIf 
+			SaveSettings()
+		Case $traySubIdleIdle
+			$giRandomIdleAction = 2
+			If UBound($gaIdleActions) = 0 Then 
+				If Not LoadIdleActions() Then 
+					TraySetState( $traySubIdleDisable, $TRAY_CHECKED)
+					$giRandomIdleAction = 0
+					MsgBox( 0, "Get the workshop item", "Sorry, but for idle actions to work, you need to subscribe to a workshop item. Click ok and I will open the item's page. " )
+					ShellExecute( "https://steamcommunity.com/sharedfiles/filedetails/?id=2808241801" )
+				EndIf
+			EndIf 
+			SaveSettings()
+
 		Case $traySubCmdShowLog
 			; Show the recent messsage/command log
 			FileWrite( @TempDir & "\messagelog.txt", $gsMessageLog)
@@ -435,7 +490,23 @@ while True
 		EndIf
 	EndIf
 
-
+	If $giRandomIdleAction > 0 And $gsControlProg = "MMD4" Then 
+		; Check to see if a model's VMD is finished
+		For $i = 0 to UBound($gaModels)-1
+			If  $gaModels[$i][$MODEL_ACTIONLENGTH] <> 0 Then 
+				; This model is Doing VMD
+				Local $iTime = TimerDiff($gaModels[$i][$MODEL_ACTIONTIMER])
+				If $iTime > $gaModels[$i][$MODEL_ACTIONLENGTH] Then 
+					; the VMD is over.
+					If (Not $gbProgDancePlaying) And (Not $gbRandomDancePlaying) Then ; If the models are dancing, no need to send stop.
+						c( "Sent:" & $gaModels[$i][$MODEL_NO] & ".DanceEnd")
+						SendCommand( $ghHelperHwnd, $ghMMD, "model" & $gaModels[$i][$MODEL_NO] & ".DanceEnd" )
+					EndIf 
+					$gaModels[$i][$MODEL_ACTIONLENGTH] = 0  ; Done!
+				EndIf
+			EndIf
+		Next
+	EndIf
 	; Check things every second.
 	if TimerDiff($hTimer1Sec)> 1000 Then
 		CheckEverySecond()
@@ -594,7 +665,18 @@ Func NotDoneYet()
 EndFunc
 
 Func LoadBackgroundList()
-	$gaBgList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
+	Global $gaBgList = _FileListToArray( @ScriptDir & "\Backgrounds", "*", $FLTA_FOLDERS )
+EndFunc
+
+Func LoadIdleActions()
+	; MMD4 idle actions
+	If FileExists( $gsMMD4IdleActionPath) Then 
+		Global $gaMiscActions = _FileListToArray( $gsMMD4IdleActionPath & "\Misc", "*.vmd", $FLTA_FILES)
+		Global $gaIdleActions = _FileListToArray( $gsMMD4IdleActionPath & "\Idle", "*.vmd", $FLTA_FILES)
+		Return True ; success
+	Else 
+		Return False
+	EndIf 
 EndFunc
 
 Func StartDanceNext()
@@ -655,8 +737,9 @@ Func ShowEffect($sEffectFolder)
 	$oEffect.Item("src") = $sEffectFolder & "\" & $oEffect.Item("src")
 	Local $sEffectString = "loadEffect:effect:" & Json_Encode( $oEffect )
 
-	c( "effect to send:" & $sEffectString )
+	; c( "effect to send:" & $sEffectString )
 	SendCommand( $ghHelperHwnd, $ghMMD, $sEffectString )
+	; For some reason, MMD4 lost the hook after sending the effect
 EndFunc
 
 Func StopDanceExtra($bFast = False)
@@ -714,7 +797,7 @@ Func StartDanceExtra()
 			; Relative path.
 			$sEffect = $gsDancePath & "\" & $sEffect
 		EndIf
-		c( "Effect to show:" & $sEffect)
+		; c( "Effect to show:" & $sEffect)
 		ShowEffect(  $sEffect )
 	EndIf
 EndFunc
@@ -729,16 +812,17 @@ Func ProcessMessage($sProg, $sMessage)
 	If StringLen($gsMessageLog) > 50000 Then $gsMessageLog = StringLeft($gsMessageLog, 40000) ; Keep the last 40k
 	
 	Switch $sProg
-		Case "MMD3Core", "DMECore", "MMD4Core"
-			Select 	; Handle the command message from mmd3core.
+		Case "MMD3Core", "DMECore"
+			Select 	; Handle the command messages from mmd3core and DMECore.
 				Case StringStartsWith( $sMessage, "loadModel:model" )
 					; Load a new model.
 					Local $iModelNo = Int( StringBtw( $sMessage, "loadModel:model", ":{" ) )
 					Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
 					; c( "json to decode:" & $sJson)
 					AddModel( $iModelNo, $sJson )
-				Case $giDanceWithBg = 1
-					If StringInStr($sMessage, ".DanceReady", 1) <> 0 Then
+				Case StringInStr($sMessage, ".DanceReady", 1) <> 0
+					$gbProgDancePlaying = True		; Prog MMD is playing a dance
+					If $giDanceWithBg = 1 Then 
 						; Time to start a dance. Check if Extra.json exist.
 						Local $sPath = GetFolderFromPath( StringAfter($sMessage, "|") )
 						If FileExists( $sPath & "\extra.json" ) Then ; The one with specified background/effects takes the priority
@@ -746,10 +830,50 @@ Func ProcessMessage($sProg, $sMessage)
 						ElseIf $giDanceWithBg = 1 Then
 							$gsDanceExtra = "RANDOM"		; Start random background / effect
 						EndIf
-					ElseIf StringInStr($sMessage, "DanceEnd", 1) <> 0 Then
-						; User stop a dance.
-						$gsDanceExtra = "STOP"
+					EndIf 
+				
+				Case StringInStr($sMessage, "DanceEnd", 1) <> 0
+					c("Dance stop")
+					$gbProgDancePlaying = False
+					If $gbDanceExtraPlaying Then $gsDanceExtra = "STOP"
+			EndSelect
+		Case "MMD4Core"
+			Select 	; Handle the command messages from mmd4core.
+				Case StringStartsWith( $sMessage, "loadModel:model" )
+					; Load a new model.
+					Local $iModelNo = Int( StringBtw( $sMessage, "loadModel:model", ":{" ) )
+					Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
+					; c( "json to decode:" & $sJson)
+					AddModel( $iModelNo, $sJson )
+				Case StringInStr($sMessage, ".DanceReadyAll", 1) <> 0
+					$gbProgDancePlaying = True		; Prog MMD is playing a dance
+					If $giDanceWithBg = 1 Then 
+						; Time to start a dance. Check if Extra.json exist.
+						Local $sPath = GetFolderFromPath( StringAfter($sMessage, "|") )
+						If FileExists( $sPath & "\extra.json" ) Then ; The one with specified background/effects takes the priority
+							$gsDanceExtra = $sPath & "\extra.json"  ; Once $gsDanceExtra is set. It will be processed by the main loop.
+						ElseIf $giDanceWithBg = 1 Then
+							$gsDanceExtra = "RANDOM"		; Start random background / effect
+						EndIf
+					EndIf 
+				
+				Case StringInStr($sMessage, "DanceEnd", 1) <> 0
+					c("Dance stop")
+					If $gbProgDancePlaying Then 
+						; Reset all the models for random moves, only for MMD4
+						If $giRandomIdleAction > 0 Then 
+							Local $iCount = UBound($gaModels)
+							If $iCount > 0 Then 
+								For $i = 0 to $iCount -1
+									; Reset all their timers.
+									$gaModels[$i][$MODEL_ACTIONTIMER] = TimerInit()
+								Next
+							EndIf 
+						EndIf
+						$gbProgDancePlaying = False
 					EndIf
+				
+					If $gbDanceExtraPlaying Then $gsDanceExtra = "STOP"
 			EndSelect
 		Case "MMD3", "DME", "MMD4"
 			Select ; Handle the messages from mmd3
@@ -861,7 +985,7 @@ EndFunc
 Func AddModel($Number, $sJson = "")
 	; Add a model to the list by simply a number, or a Json string for more detail
 	Local $iCount = UBound($gaModels)
-	ReDim $gaModels[$iCount + 1][3]
+	ReDim $gaModels[$iCount + 1][6]
 	$gaModels[$iCount][$MODEL_NO] = $Number
 	If $sJson <> "" Then
 		$gaModels[$iCount][$MODEL_OBJ] = Json_Decode($sJson)
@@ -871,6 +995,7 @@ Func AddModel($Number, $sJson = "")
 		$gaModels[$iCount][$MODEL_NAME] = "Model " & $Number
 	EndIf
 	$giActiveModelNo = $Number	; The new model will become the active one.
+	$gaModels[$iCount][$MODEL_ACTIONLENGTH] = 0
 	; Now refresh the model list sub menu
 	RefreshModelListMenu()
 EndFunc
@@ -941,12 +1066,13 @@ EndFunc
 Func InitSettings()
 	; This settings will be saved
 	$gsLang = "Eng"
-	$gsControlProg = "MMD3"
+	$gsControlProg = "MMD4"
 	$giActiveMonitor = 1
 	$giDanceWithBg = 1		; 0 : disable , 1: enable.
 	$giDanceRandomBg = 1
 	$giRandomDanceWithSound = 0
 	$gsSoundMonitorProg = "vlc.exe"
+	$giRandomIdleAction = 0		; 0 disable, 1 misc actions, 2 idle actions
 EndFunc
 
 Func SaveSettings()
@@ -957,6 +1083,7 @@ Func SaveSettings()
 	RegWrite( $gsRegBase, "DanceRandomBackground", "REG_DWORD", $giDanceRandomBg )
 	RegWrite( $gsRegBase, "RandomDanceWithSound", "REG_DWORD", $giRandomDanceWithSound )
 	RegWrite( $gsRegBase, "SoundMonitorProgram", "REG_SZ", $gsSoundMonitorProg )
+	RegWrite( $gsRegBase, "MMD4IdleAction", "REG_DWORD", $giRandomIdleAction )
 EndFunc
 
 Func LoadGlobalSettings()
@@ -976,6 +1103,8 @@ Func LoadGlobalSettings()
 	$giRandomDanceWithSound = RegRead($gsRegBase, "RandomDanceWithSound")
 	If @error Then Return False
 	$gsSoundMonitorProg = RegRead($gsRegBase, "SoundMonitorProgram")
+	If @error Then Return False
+	$giRandomIdleAction = RegRead($gsRegBase, "MMD4IdleAction")
 	If @error Then Return False
 	Return True	; loaded
 EndFunc
@@ -1173,7 +1302,7 @@ Func GetWorkArea()
 EndFunc   ;==>GetWorkArea
 
 Func TrayChangeStatusIcon()
-	If $gbProgRunning Then
+	If $gbMMDProgRunning Then
 		TraySetIcon("Icons\trayActive.ico")
 		_TrayMenuAddImage($hIcons[7], 2)
 	Else
@@ -1184,7 +1313,7 @@ Func TrayChangeStatusIcon()
 EndFunc
 
 Func TrayStatus()
-	Return "Status: " & $gsControlProg & ( $gbProgRunning ? " is active." : " is not active.")
+	Return "Status: " & $gsControlProg & ( $gbMMDProgRunning ? " is active." : " is not active.")
 EndFunc
 
 Func SetHandleAndPID()
@@ -1194,9 +1323,9 @@ Func SetHandleAndPID()
 		Case "MMD3"
 			$ghMMD = WinGetHandle( "DMMDCore3", "")
 			If @error Then
-				$gbProgRunning = False
+				$gbMMDProgRunning = False
 			Else
-				$gbProgRunning = True
+				$gbMMDProgRunning = True
 				$iPID = WinGetProcess("DesktopMMD3", "")
 				If $iPID <> $giProgPID Then
 					$giProgPID = $iPID
@@ -1206,9 +1335,9 @@ Func SetHandleAndPID()
 		Case "DME"
 			$ghMMD = WinGetHandle( "[REGEXPTITLE:DMMDCore$]", "")
 			If @error Then ; Program is not running
-				$gbProgRunning = False
+				$gbMMDProgRunning = False
 			Else
-				$gbProgRunning = True
+				$gbMMDProgRunning = True
 				$iPID = WinGetProcess( "DesktopMagicEngine", "")
 				If $iPID <> $giProgPID Then
 					$giProgPID = $iPID
@@ -1218,9 +1347,9 @@ Func SetHandleAndPID()
 		Case "MMD4"
 			$ghMMD = WinGetHandle( "DMMD4Core", "")
 			If @error Then ; Program is not running
-				$gbProgRunning = False
+				$gbMMDProgRunning = False
 			Else
-				$gbProgRunning = True
+				$gbMMDProgRunning = True
 				$iPID = WinGetProcess( "DesktopMMD4", "")
 				If $iPID <> $giProgPID Then
 					$giProgPID = $iPID
@@ -1228,7 +1357,7 @@ Func SetHandleAndPID()
 				EndIf
 			EndIf
 	EndSwitch
- 	Return $gbProgRunning
+ 	Return $gbMMDProgRunning
 EndFunc
 
 Func CheckStatus()
@@ -1245,9 +1374,77 @@ Func CheckEverySecond()
 	If Not $bHook Then ReHook()
 	SetHandleAndPID()	; Check to see if MMD3 or DME still running.
 	CheckStatus()			; Set the status text.
-	If $giRandomDanceWithSound = 1 Then 
+	If $giRandomDanceWithSound = 1 And (Not $gbProgDancePlaying) And $gbMMDProgRunning Then 
 		MonitorProgSound()
 	EndIf
+	
+	If $giRandomIdleAction > 0 And (Not $gbRandomDancePlaying) And (Not $gbProgDancePlaying) And UBound($gaModels) > 0 And $gbMMDProgRunning Then 
+		MMD4RandomAction()
+	EndIf
+EndFunc
+
+Func MMD4RandomAction()
+	; This is for MMD4 only
+	
+	Local $sActionFile, $iNewTime
+	If $gsControlProg <> "MMD4" Then Return
+	If UBound($gaMiscActions) = 0 Then
+		If Not LoadIdleActions() Then Return 
+	EndIf
+	; Now check each model and see if their idle is due
+	For $i = 0 to UBound( $gaModels )-1
+		If ModelTimeUp($i) Then 
+			; New random action
+			c("Times up for model " & $i & " gbProgDancePlaying:" & $gbProgDancePlaying)
+			If $giRandomIdleAction = 1 Then 
+				$sActionFile = "\Misc\"
+				$sActionFile &= $gaMiscActions[Random(1, $gaMiscActions[0], 1)]
+			ElseIf $giRandomIdleAction = 2 Then
+				$sActionFile = "\Idle\"
+				$sActionFile &= $gaIdleActions[Random(1, $gaIdleActions[0], 1)]
+			EndIf
+			; Set new time limit
+			$iNewTime = Floor( Random( 10, 20) * 1000 ) ; between 10,000 and 20,000
+			$gaModels[$i][$MODEL_ACTIONTIMER] = TimerInit()
+			
+			; Get the length of vmd play time.
+			Local $iFrames = GetVMDFrameCount($gsMMD4IdleActionPath & $sActionFile)
+			Local $iVMDTime = Floor( $iFrames * 33.33 )	 ; Convert to total milliseconds.
+			$gaModels[$i][$MODEL_ACTIONLENGTH] = $iVMDTime
+			$gaModels[$i][$MODEL_NEXTACTIONTIME] = $iNewTime + $iVMDTime
+			
+			StartAction("model" & $gaModels[$i][$MODEL_NO], $gsMMD4IdleActionPath & $sActionFile)
+			c("action time:" & $gaModels[$i][$MODEL_ACTIONLENGTH] &  " Next action time:" & $gaModels[$i][$MODEL_NEXTACTIONTIME] ) 
+		EndIf
+	Next
+EndFunc
+
+Func StartAction($sModel, $sVMDFile)
+	; First: loop, Second: Disable IK, Third: EC
+	; Somehow the third one need to be 0 to play.
+	Local $sFirst = "0", $sSecond = "1", $sThird = "0"
+	Local $sCommand = $sFirst & "_" & $sSecond & "_" & $sThird & "|" & $sVMDFile
+	
+	$gsLastActionCommand = $sModel & ".DanceReady:" & $sCommand
+	c( "Action to MMD:" & $gsLastActionCommand)
+	SendCommand($ghHelperHwnd, $ghMMD, $gsLastActionCommand)
+	Sleep(100)
+	SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceStart:0") ; 0 means only 1 model dancing.
+EndFunc
+
+Func GetVMDFrameCount($sVMDFile)
+	; Get the total frame count in a VMD file.
+	; Too lazy to get the last frame number, use the one in file name instead.
+	Local $iPos = StringInStr($sVMDFile, "_", 1, -1)
+	Return StringMid($sVMDFile, $iPos+1, StringLen($sVMDFile)-$iPos-4 )
+EndFunc
+
+Func ModelTimeUp($iModelNo)
+	Local $hTimer = $gaModels[$iModelNo][$MODEL_ACTIONTIMER]
+	If Not $hTimer Then Return True
+	Local $iTime = TimerDiff($hTimer)
+	If $iTime > $gaModels[$iModelNo][$MODEL_NEXTACTIONTIME] Then Return True
+	Return False
 EndFunc
 
 Func MonitorProgSound()

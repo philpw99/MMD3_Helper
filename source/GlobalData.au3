@@ -11,6 +11,7 @@ Global Const $gsDMEWorkshopPath = "C:\Program Files (x86)\Steam\steamapps\worksh
 Global Const $gsMMD4Path = "C:\Program Files (x86)\Steam\steamapps\common\DesktopMMD4"
 Global Const $gsMMD4AssetPath = $gsMMD4Path & "\Appdata\Assets"
 Global Const $gsMMD4WorkshopPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650"
+Global Const $gsMMD4IdleActionPath = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650\2808241801"
 
 ; This is to establish MMD3 random dance data
 Global $gaMMD3Dances[51]
