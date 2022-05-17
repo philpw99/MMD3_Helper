@@ -1,8 +1,20 @@
-; ConsoleWrite("out:" & FileExists("C:\Program Files (x86)\Steam\steamapps\workshop\content\1968650\2808241801") & @CRLF)
+#include "Json.au3"
+$sText = FileRead("theme.json")
+$oData = Json_Decode($sText)
 
-$sPath = RegRead("HKEY_CURRENT_USER\Software\Valve\Steam","SteamPath")
-$sPath = StringReplace( $sPath, "/", "\" ) & "\steamapps\workshop\content\1968650\2808241801"
-c("Path:"& $sPath)
+$oModels =$oData.Item("model")
+For $sModel In $oModels
+   c( "Model:" & $sModel )
+   $oModel = $oModels.Item( $sModel )
+   c( "type:" & VarGetType($oModel) )
+   c( "Name:" & $oModel.Item( "kind" ) )
+Next
+
+
+Func e( $err, $str)
+   c("whatever"&$str&@CRLF)
+   Return SetError($err)
+EndFunc
 
 Func c($str)
    ConsoleWrite($str&@crlf)

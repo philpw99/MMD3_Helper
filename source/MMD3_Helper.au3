@@ -23,7 +23,6 @@
 #include <WinAPICom.au3>	; For sound detection.
 #include <Process.au3>		; To get the process name
 #include <Sound.au3>		; To get the length of a music file.
-
 #include "Json.au3"
 
 opt("MustDeclareVars", 1)
@@ -36,7 +35,6 @@ Global Const $gsVersion = "v1.0.9"
 
 ; Registry path to save program settings.
 Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
-Global $gsMessageLog = ""
 
 ; Language
 Global $gsLang = "Eng", $goLang
@@ -64,10 +62,13 @@ Global $giHelperPID = WinGetProcess($ghHelperHwnd)
 c ( "Helper PID:" & $giHelperPID )
 Global $gbMMDProgRunning = False 	; The MMD3 or DME is running?
 
+Global $gsThemeLastModified = ""	; Theme.json last modified time in string.
+
 ; Model number and model object data created by json.
 ; action timer is the timer handle to see last time it did random action, ACTIONTIMELIMIT is how long to wait for the next action.
 Global Enum $MODEL_NO, $MODEL_NAME, $MODEL_OBJ, $MODEL_ACTIONTIMER, $MODEL_ACTIONLENGTH, $MODEL_NEXTACTIONTIME
-Global $gaModels[0][6]		; Models loaded in memory.
+Global $giModelDataColumns = 6
+Global $gaModels[0][$giModelDataColumns]		; Models loaded in memory.
 
 Global Enum $MODEL_ITEM_HANDLE, $MODEL_ITEM_NAME
 Global $gaModelMenuItems[0][2]		; Menu Item Handle and name, first one is always "Model List"
@@ -79,11 +80,9 @@ Global $giActiveModelNo = 0		; 0 means active model is unknown.
 ; Load forms below
 ; #include "Forms\Settings.au3"
 
-If Not LoadGlobalSettings() Then
-	; Something wrong with settings. Default setting is set.
-	SaveSettings()
-EndIf
+LoadGlobalSettings()
 
+; The following global data can be multi-lingal, so it's loaded here.
 Global Const $gsAboutText = "MMD3 Helper " & $gsVersion & T(", written by Philip Wang.") _
 						   &@CRLF& T("Extend the features of the Excellent DesktopMagicEngine, DesktopMMD3 and DesktopMMD4.")
 
@@ -180,11 +179,8 @@ $iMenuItem += 1
 
 Global $trayMenuCommands = TrayCreateMenu("Model Commands")		; Send common or custom commands to a model.
 _TrayMenuAddImage($hIcons[1], $iMenuItem)
-Global $traySubCmdStop = TrayCreateItem("Stop", $trayMenuCommands)
+Global $traySubCmdStop = TrayCreateItem("Stop Dance and Background", $trayMenuCommands)
 Global $traySubCmdShowActive = TrayCreateItem("Show Active Model", $trayMenuCommands)
-Global $traySubCmdStartRandom = TrayCreateItem("Start Random Dance", $trayMenuCommands)
-Global $traySubCmdShowLog = TrayCreateItem("Show Message Log", $trayMenuCommands)
-Global $traySubCmdClearLog = TrayCreateItem("Clear Message Log", $trayMenuCommands)
 $iMenuItem += 1
 
 ; For Random action when idling
@@ -292,7 +288,7 @@ while True
 				SaveSettings()
 				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
 				; Clean the model list
-				Global $gaModels[0][6]
+				Global $gaModels[0][$giModelDataColumns]
 				RefreshModelListMenu()
 			EndIf
 		Case $traySubDME
@@ -304,7 +300,7 @@ while True
 				SaveSettings()
 				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
 				; Clear the model list
-				Global $gaModels[0][6]
+				Global $gaModels[0][$giModelDataColumns]
 				RefreshModelListMenu()
 			EndIf
 		Case $traySubMMD4
@@ -316,7 +312,7 @@ while True
 				SaveSettings()
 				LoadBackgroundList()	; Update the file and folder list of backgrounds and effects
 				; Clear the model list
-				Global $gaModels[0][6]
+				Global $gaModels[0][$giModelDataColumns]
 				RefreshModelListMenu()
 				If $giRandomDanceWithSound = 1 And UBound($gaMMD4Dances) = 0 Then
 					LoadMMD4Dances()
@@ -387,20 +383,10 @@ while True
 			EndIf
 			SaveSettings()
 
-		Case $traySubCmdShowLog
-			; Show the recent messsage/command log
-			FileWrite( @TempDir & "\messagelog.txt", $gsMessageLog)
-			ShellExecute( @TempDir & "\messagelog.txt")
-		Case $traySubCmdClearLog
-			; Clear the message/command log
-			$gsMessageLog = ""
-
 		Case $traySubCmdStop
 			StopDance()
 		Case $traySubCmdShowActive
 			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".active" )
-		Case $traySubCmdStartRandom
-			NotDoneYet()
 		Case $traySubPlaylistStart, $traySubPlaylistStop, $traySubPlaylistManage
 			NotDoneYet()
 		Case $trayTitle
@@ -521,6 +507,66 @@ _WinAPI_CoUninitialize()
 Exit
 
 #Region Main Functions
+
+Func LoadModelsFromTheme()
+	; This will get the model info from theme.json
+	Local $sThemeFile 
+	If $gsControlProg = "DME" Then 
+		$sThemeFile = $gsDMEThemeFile
+	ElseIf $gsControlProg = "MMD3" Then
+		$sThemeFile = $gsMMD3ThemeFile
+	ElseIf $gsControlProg = "MMD4" Then
+		$sThemeFile = $gsMMD4ThemeFile
+	EndIf
+	Local $sLastModified = FileGetTime($sThemeFile, $FT_MODIFIED , $FT_STRING )
+	
+	If $gbMMDProgRunning Then 
+		; MMD program is running
+		If ( Not $sLastModified = $gsThemeLastModified ) Or UBound($gaModels) = 0 Then 
+			; It was modified or empty before, read the file
+			Local $sFileText = FileRead($sThemeFile)
+			Local $oData = Json_Decode($sFileText)
+			If Not IsObj($oData) Then Return SetError(e(1,@ScriptLineNumber))
+			Local $oModels = $oData.Item("model")
+			If Not IsObj($oModels) Then Return SetError(e(1,@ScriptLineNumber))
+			
+			; $aModels is the new array that will replace $gaModels
+			Local $i = 0, $aModels[0][$giModelDataColumns]
+			For $sModel In $oModels
+				; $sModel: model1, model2...
+				Local $oModel = $oModels.Item($sModel)
+				$i += 1
+				ReDim $aModels[$i][$giModelDataColumns]
+				Local $iModelNo = Number( StringMid($sModel, 6) )
+				Local $iSearch = _ArraySearch( $gaModels, $iModelNo, 0, 0, 0, 2, 1, $MODEL_NO )
+				If @error = 0 And $gaModels[$iSearch][$MODEL_NAME] = $oModel.Item("name") Then 
+					; Same model, different obj data
+					$aModels[$i-1][$MODEL_NO] = $iModelNo
+					$aModels[$i-1][$MODEL_NAME] = $oModel.Item("name")
+					$aModels[$i-1][$MODEL_OBJ] = $oModel
+					$aModels[$i-1][$MODEL_ACTIONTIMER] = $gaModels[$iSearch][$MODEL_ACTIONTIMER]
+					$aModels[$i-1][$MODEL_ACTIONLENGTH] = $gaModels[$iSearch][$MODEL_ACTIONLENGTH]
+					$aModels[$i-1][$MODEL_NEXTACTIONTIME] = $gaModels[$iSearch][$MODEL_NEXTACTIONTIME]
+				Else
+					; Not match, just add it.
+					$aModels[$i-1][$MODEL_NO] = $iModelNo
+					$aModels[$i-1][$MODEL_NAME] = $oModel.Item("name")
+					$aModels[$i-1][$MODEL_OBJ] = $oModel
+					$aModels[$i-1][$MODEL_ACTIONLENGTH] = 0
+				EndIf
+			Next
+			; Done adding all the models from them.json. Set the new array.
+			$gaModels = $aModels
+			; $giActiveModelNo = $i
+			If UBound($gaModels) > 0 Then RefreshModelListMenu()
+		EndIf
+	ElseIf UBound($gaModels) <> 0 Then 
+		; Not running any more, but the data is still not clear
+		ReDim $gaModels[0][$giModelDataColumns]
+	EndIf
+EndFunc
+
+
 
 ;	Loading other GUIs
 #include "Forms\DanceWithSound.au3"
@@ -680,12 +726,12 @@ Func StartDanceNext()
 	If $giDanceItem >= UBound($gaDanceData) Then
 		; It should have been stopped. So here is just in case.
 		StopDanceExtra(True)	; fast stop
-		Return Error(1, @ScriptLineNumber)
+		Return SetError(e(1,@ScriptLineNumber))
 	EndIf
 
 	c( "Playing dance:" & $giDanceItem )
 	Local $oDance = $gaDanceData[$giDanceItem]
-	If Not IsObj($oDance) Then Return Error(1, @ScriptLineNumber)
+	If Not IsObj($oDance) Then Return SetError(e(1,@ScriptLineNumber))
 
 	c("Next Dance seconds:" & $oDance.Item("Time") )
 
@@ -722,10 +768,10 @@ Func ShowEffect($sEffectFolder)
 ;~ 			$sEffectFile = $sEffectFolder & "\item.json"
 ;~ 	EndSwitch
 
-	If Not FileExists($sEffectFile) Then Return Error(1, @ScriptLineNumber)
+	If Not FileExists($sEffectFile) Then SetError(e(1,@ScriptLineNumber))
 
 	Local $oEffect = Json_Decode( FileRead( $sEffectFile) ) ; Get the effect settings from file.
-	If Not IsObj($oEffect) Then Return Error(2, @ScriptLineNumber)
+	If Not IsObj($oEffect) Then Return SetError(e(2,@ScriptLineNumber))
 
 	; Set effect string
 	$oEffect.Item("path") = $sEffectFolder & "\"
@@ -758,7 +804,7 @@ Func StartDanceExtra()
 	If UBound($gaDanceData) = 0 or Not IsObj($gaDanceData[0]) Then
 		c( "error in $gsDanceExtra:" & $gsDanceExtra)
 		$gsDanceExtra = ""
-		Return Error(1, @ScriptLineNumber)
+		Return SetError(e(1,@ScriptLineNumber))
 	EndIf
 
 	$gsDanceExtra = ""
@@ -803,18 +849,16 @@ EndFunc
 Func ProcessMessage($sProg, $sMessage)
 	c( $sProg & ":" & @CRLF & "-----" & @crlf & $sMessage & @CRLF & @CRLF )
 
-	; $gsMessageLog &= @CRLF & "-----" & @CRLF & "From " & $sProg & ":" & @CRLF & $sMessage
-	; If StringLen($gsMessageLog) > 50000 Then $gsMessageLog = StringLeft($gsMessageLog, 40000) ; Keep the last 40k
-
 	Switch $sProg
 		Case "MMD3Core", "DMECore"
 			Select 	; Handle the command messages from mmd3core and DMECore.
 				Case StringLeft( $sMessage,15) = "loadModel:model"
+					; No more tracking the models here. Model tracking by using theme.json
 					; Load a new model.
-					Local $iModelNo = Int( StringBtw( $sMessage, "loadModel:model", ":{" ) )
-					Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
+					; Local $iModelNo = Int( StringBtw( $sMessage, "loadModel:model", ":{" ) )
+					; Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
 					; c( "json to decode:" & $sJson)
-					AddModel( $iModelNo, $sJson )
+					; AddModel( $iModelNo, $sJson )
 				Case StringInStr($sMessage, ".DanceReady", 1) <> 0
 					$gbProgDancePlaying = True		; Prog MMD is playing a dance
 					If $giDanceWithBg = 1 Then
@@ -835,11 +879,12 @@ Func ProcessMessage($sProg, $sMessage)
 		Case "MMD4Core"
 			Select 	; Handle the command messages from mmd4core.
 				Case StringLeft( $sMessage,15) = "loadModel:model"
+					; No more tracking the models here. Model tracking by using theme.json
 					; Load a new model.
-					Local $iModelNo = Int( StringBtw( $sMessage, "loadModel:model", ":{" ) )
-					Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
+ 					; Local $iModelNo = Int( StringBtw( $sMessage, "loadModel:model", ":{" ) )
+					; Local $sJson = "{" & StringBtw( $sMessage, "{", "" )
 					; c( "json to decode:" & $sJson)
-					AddModel( $iModelNo, $sJson )
+					; AddModel( $iModelNo, $sJson )
 
 				Case StringInStr($sMessage, ".DanceReadyAll", 1) <> 0
 					$gbProgDancePlaying = True		; Prog MMD is playing a dance
@@ -939,15 +984,14 @@ EndFunc
 Func SetActiveModelFromMessage($iNumber)
 	c( "Set active:" & $iNumber & " current:" & $giActiveModelNo)
 	If Not IsInt($iNumber) Then Return
-	If $iNumber = $giActiveModelNo Then Return
+	; If $iNumber = $giActiveModelNo Then Return
 	Local $iCount = UBound($gaModels), $bFound = False
 	Local $sName
 	If $iCount = 0 Then
-		; No models loaded, need to add it.
-		AddModel($iNumber)
-		TrayItemSetText($trayMenuModels, "Active Model: Model " & $iNumber)
-		RefreshModelListMenu()
-		Return
+		; No models loaded. Maybe just give it some time.
+		Sleep(100)
+		; AddModel($iNumber)
+		LoadModelsFromTheme()
 	EndIf
 	For $i = 0 to $iCount -1
 		if $gaModels[$i][$MODEL_NO] = $iNumber Then
@@ -963,17 +1007,16 @@ Func SetActiveModelFromMessage($iNumber)
 		$giActiveModelNo = $iNumber
 	Else
 		; Not found, need to add it to the array
-		AddModel($iNumber)
+		; AddModel($iNumber)
 		TrayItemSetText($trayMenuModels, "Active Model: Model " & $iNumber)
 	EndIf
-	RefreshModelListMenu()
-	; There is no need to do the waving.
+
 EndFunc
 
 Func SetActiveModelFromMenu($iNumber)
 	; No, you cannot set active model from the menu.
 	; So it will only wave at you, nothing more.
-	If Not IsInt($iNumber) Then Return Error(1, @ScriptLineNumber)
+	If Not IsInt($iNumber) Then Return SetError(e(1,@ScriptLineNumber))
 	; $giActiveModelNo = $iNumber
 	SendCommand( $ghHelperHwnd, $ghMMD, "model" & $iNumber & ".active" )
 EndFunc
@@ -982,7 +1025,7 @@ EndFunc
 Func AddModel($Number, $sJson = "")
 	; Add a model to the list by simply a number, or a Json string for more detail
 	Local $iCount = UBound($gaModels)
-	ReDim $gaModels[$iCount + 1][6]
+	ReDim $gaModels[$iCount + 1][$giModelDataColumns]
 	$gaModels[$iCount][$MODEL_NO] = $Number
 	If $sJson <> "" Then
 		$gaModels[$iCount][$MODEL_OBJ] = Json_Decode($sJson)
@@ -1033,13 +1076,13 @@ EndFunc
 
 Func StringBtw($sFull, $str1, $str2, $case = 1)	; Default: case sensitive.
 	Local $iPos1 = StringInStr($sFull, $str1, $case), $iPos2
-	If $iPos1 = 0 Then Return Error(1, @ScriptLineNumber)	; $str1 Not found
+	If $iPos1 = 0 Then Return SetError(e(1,@ScriptLineNumber))	; $str1 Not found
 	$iPos1 += StringLen($str1)
 	If $str2 = "" Then
 		$iPos2 = StringLen($sFull)
 	Else
 		$iPos2 = StringinStr( $sFull, $str2, $case, 1, $iPos1 )
-		If $iPos2 = 0 Then Return Error(2, @ScriptLineNumber) ; $str2 not found
+		If $iPos2 = 0 Then Return SetError(e(2,@ScriptLineNumber)) ; $str2 not found
 	EndIf
 	Return StringMid( $sFull, $iPos1, $iPos2-$iPos1+1 )
 EndFunc
@@ -1048,7 +1091,7 @@ Func LoadLanguage()
 	If $gsLang = "Eng" Then Return
 	$goLang = ObjCreate('Scripting.Dictionary')
 	Local $hFile = FileOpen(@ScriptDir & "\Languages\" & $gsLang & ".txt")
-	If @error Then Return Error(1, @ScriptLineNumber)
+	If @error Then Return SetError(e(1,@ScriptLineNumber))
 
 	While True
 		Local $sLine = FileReadLine($hFile)
@@ -1128,7 +1171,8 @@ Func LoadGlobalSettings()
 		$bAllOK = False
 		$giRandomIdleAction = 0
 	EndIf
-	Return $bAllOK
+	
+	If Not $bAllOK Then SaveSettings()
 EndFunc
 
 ; This function returns the proper dimension for picBackground
@@ -1161,7 +1205,7 @@ EndFunc
 ; This function switch the background immediately without fade in. No change in guiDummy
 Func SwitchBackground( $sBgFile)
 	; Local $aDim = GetJpegDimension($sBgFile)
-	; if @error Then Return Error(1, @ScriptLineNumber)
+	; if @error Then Return SetError(e(1,@ScriptLineNumber))
 
 	; Local $aSize = CalcBackgroundPos($aDim[0], $aDim[1])
 
@@ -1170,7 +1214,7 @@ Func SwitchBackground( $sBgFile)
 	; GUICtrlSetImage( $picBackground, $sBgFile )
 
 	_GUICtrlStatic_SetPicture($picBackground, $sBgFile)
-	If @error Then Return Error(1, @ScriptLineNumber)
+	If @error Then Return SetError(e(1,@ScriptLineNumber))
 
 	$gbBackgroundOn = True
 	; Set the dancer to the front.
@@ -1181,7 +1225,7 @@ EndFunc
 ; This function fade in and show the background. Change guiDummy to visible
 Func ShowBackground( $sBgFile )
 	; Local $aDim = GetJpegDimension($sBgFile)
-	; If @error Then Return Error(1, @ScriptLineNumber)
+	; If @error Then Return SetError(e(1,@ScriptLineNumber))
 	; Create it again to get the dimension of the picture
 	;c( "picture size: " & $aDim[0] & "x" & $aDim[1] )
 	;Local $aSize = CalcBackgroundPos($aDim[0], $aDim[1])
@@ -1192,7 +1236,7 @@ Func ShowBackground( $sBgFile )
 	; GUICtrlSetImage( $picBackground, $sBgFile )
 
 	_GUICtrlStatic_SetPicture($picBackground, $sBgFile)
-	If @error Then Return Error(1, @ScriptLineNumber)
+	If @error Then Return SetError(e(1,@ScriptLineNumber))
 
 	; Fade in
 	WinSetTrans($guiDummy, "", 0 )
@@ -1393,8 +1437,10 @@ EndFunc
 Func CheckEverySecond()
 	Local $bHook = HookWorks()
 	if @error Then ExitC ("Error in checking hook. Error:" & @error)
+	
 	If Not $bHook Then ReHook()
 	SetHandleAndPID()	; Check to see if MMD3 or DME still running.
+	; c( "MMDCore Hwnd:" & $ghMMD & "  MMD Prog PID:" & $giProgPID )
 	CheckStatus()			; Set the status text.
 	If $giRandomDanceWithSound = 1 And (Not $gbProgDancePlaying) And $gbMMDProgRunning Then
 		MonitorProgSound()
@@ -1402,6 +1448,12 @@ Func CheckEverySecond()
 
 	If $giRandomIdleAction > 0 And (Not $gbRandomDancePlaying) And (Not $gbProgDancePlaying) And UBound($gaModels) > 0 And $gbMMDProgRunning Then
 		MMD4RandomAction()
+	EndIf
+	
+	If $gbMMDProgRunning Then 
+		LoadModelsFromTheme()
+	ElseIf UBound($gaModels) > 0 Then 
+		ReDim $gaModels[0][$giModelDataColumns]
 	EndIf
 EndFunc
 
@@ -1444,13 +1496,14 @@ Func StartAction($sModel, $sVMDFile)
 	; First: loop, Second: Disable IK, Third: EC
 	; Somehow the third one need to be 0 to play.
 	Local $sFirst = "0", $sSecond = "1", $sThird = "0"
-	Local $sCommand = $sFirst & "_" & $sSecond & "_" & $sThird & "|" & $sVMDFile
+	; Local $sCommand = $sFirst & "_" & $sSecond & "_" & $sThird & "|" & $sVMDFile
 
-	$gsLastActionCommand = $sModel & ".DanceReady:" & $sCommand
+	; $gsLastActionCommand = $sModel & ".DanceReady:" & $sCommand
+	$gsLastActionCommand = $sModel & ".testDance:" & $sVMDFile		; Test dance seems easier.
 	c( "Action to MMD:" & $gsLastActionCommand)
 	SendCommand($ghHelperHwnd, $ghMMD, $gsLastActionCommand)
 	Sleep(100)
-	SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceStart:0") ; 0 means only 1 model dancing.
+	; SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceStart:0") ; 0 means only 1 model dancing.
 EndFunc
 
 Func GetVMDFrameCount($sVMDFile)
@@ -1604,9 +1657,9 @@ Func StartDance($sDanceFile)
 			; Get the info about a dance.
 			c("file:" & GetFolderFromPath($sDanceFile) & "\item.json")
 			Local $sInfo = FileRead( GetFolderFromPath($sDanceFile) & "\item.json")
-			if @error Then Return Error(1, @ScriptLineNumber)
+			if @error Then Return SetError(e(1,@ScriptLineNumber))
 			Local $oInfo = Json_Decode($sInfo)
-			If @error or Not IsObj($oInfo) Then Return Error(2, @ScriptLineNumber)
+			If @error or Not IsObj($oInfo) Then Return SetError(e(2,@ScriptLineNumber))
 			Local $sFirst = "1", $sSecond = "0", $sThird = "0"
 			; if $oInfo.Item("isFile") = True Then $sFirst = "1"
 			If $oInfo.Item("disabledIK") Then $sSecond = "1"
@@ -1646,9 +1699,9 @@ Func StartDance($sDanceFile)
 		Case "MMD3", "DME"
 			; Get the info about a dance.
 			Local $sInfo = FileRead( GetFolderFromPath( $sDanceFile ) & "\item.json")
-			if @error Then Return Error(1, @ScriptLineNumber)
+			if @error Then Return SetError(e(1,@ScriptLineNumber))
 			Local $oInfo = Json_Decode($sInfo)
-			If @error or Not IsObj($oInfo) Then Return Error(2, @ScriptLineNumber)
+			If @error or Not IsObj($oInfo) Then Return SetError(e(2,@ScriptLineNumber))
 
 			Local $sFirst = "0", $sSecond = "0"	; Only the second digit is meaningful
 			if $oInfo.Item("initialRotation") <> "" Then
@@ -1738,7 +1791,7 @@ Func GetMonitorWorkAreas()
 		 Next
 	  Next
    Else
-	  Return Error(1, @ScriptLineNumber)
+	  Return SetError(e(1,@ScriptLineNumber))
    EndIf
    Return $aData
 EndFunc
@@ -1769,14 +1822,14 @@ Func GetMonitors()
 			$aData[$i][2] = "Monitor " & $i & ": " & $x & "x" & $y
 		Next
 	Else
-		Return Error(1, @ScriptLineNumber)
+		Return SetError(e(1,@ScriptLineNumber))
 	EndIf
 	Return $aData
 EndFunc
 
-Func Error($err, $line)
+Func e($err, $line)
 	c("Error at line:" & $line & " Error:" & $err)
-	SetError( $err )
+	return $err
 EndFunc
 
 Func GetFolderFromPath($FullPath)
