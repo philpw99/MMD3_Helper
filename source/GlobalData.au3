@@ -12,7 +12,7 @@ Global Const $gsDMEWorkshopPath = $gsSteamPath & "\steamapps\workshop\content\10
 Global Const $gsMMD4Path = $gsSteamPath & "\steamapps\common\DesktopMMD4"
 Global Const $gsMMD4AssetPath = $gsMMD4Path & "\Appdata\Assets"
 Global Const $gsMMD4WorkshopPath = $gsSteamPath & "\steamapps\workshop\content\1968650"
-Global Const $gsMMD4IdleActionPath = $gsSteamPath & "\steamapps\workshop\content\1968650\2808595805"
+Global $gsMMD4IdleActionPath = $gsSteamPath & "\steamapps\workshop\content\1968650\2808595805"
 ; Theme.json locations.
 Global Const $gsDMEThemeFile = $gsSteamPath & "\steamapps\common\DesktopMagicEngine\AppData\Themes\Default\theme.json"
 Global Const $gsMMD3ThemeFile = $gsSteamPath & "\steamapps\common\DesktopMMD3\AppData\Themes\Default\theme.json"

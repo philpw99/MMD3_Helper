@@ -50,6 +50,8 @@ Global $giRandomDanceTimeLimit, $ghRandomDanceTimer	; for use with random dance 
 Global $gbProgDancePlaying = False ; MMD program is playing a dance
 Global $giRandomIdleAction 		; 0 disable, 1 misc actions, 2 idle actions
 
+Global $giBubbleText = False	; Dialog with bubble text.
+
 ; Signified a dance extra.json is going to be used.
 ; Global $gaMMD3Dances[51]  $gaMMD4Dances[0]
 
@@ -198,7 +200,8 @@ Switch $giRandomIdleAction
 	Case 2
 		TrayItemSetState($traySubIdleIdle, $TRAY_CHECKED)
 EndSwitch
-
+TrayCreateItem("", $trayMenuIdleAction)	; Seperator
+Global $traySubIdleActionPath = TrayCreateItem("Specify Idle Action Path", $trayMenuIdleAction)
 
 $iMenuItem += 1
 Global $trayMenuPlayList = TrayCreateMenu("Active Play List:")		; Add / remove / Play the songs in play list.
@@ -382,7 +385,15 @@ while True
 				EndIf
 			EndIf
 			SaveSettings()
-
+			
+		Case $traySubIdleActionPath
+			Local $sActionPath = FileSelectFolder("Choose your own idle motion folder", $gsMMD4WorkshopPath)
+			If $sActionPath <> "" Then
+				$gsMMD4IdleActionPath = $sActionPath
+				RegWrite($gsRegBase, "MMD4ActionPath", "REG_SZ", $gsMMD4IdleActionPath)
+				LoadIdleActions()
+			EndIf
+			
 		Case $traySubCmdStop
 			StopDance()
 		Case $traySubCmdShowActive
@@ -1172,6 +1183,12 @@ Func LoadGlobalSettings()
 		$giRandomIdleAction = 0
 	EndIf
 	
+	Local $sActionPath = RegRead($gsRegBase, "MMD4ActionPath")
+	If Not @error And $sActionPath <> "" Then 
+		; It already have a default global value, but it can also specify here.
+		$gsMMD4IdleActionPath = $sActionPath
+	EndIf
+	
 	If Not $bAllOK Then SaveSettings()
 EndFunc
 
@@ -1482,7 +1499,7 @@ Func MMD4RandomAction()
 
 			; Get the length of vmd play time.
 			Local $iFrames = GetVMDFrameCount($gsMMD4IdleActionPath & $sActionFile)
-			Local $iVMDTime = Floor( $iFrames * 33.33 )	 ; Convert to total milliseconds.
+			Local $iVMDTime = Floor( $iFrames * 33.33 ) + 100	 ; Convert to total milliseconds, plus 0.1 second.
 			$gaModels[$i][$MODEL_ACTIONLENGTH] = $iVMDTime
 			$gaModels[$i][$MODEL_NEXTACTIONTIME] = $iNewTime + $iVMDTime
 
