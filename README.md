@@ -2,13 +2,17 @@
 
  A helper program for [DesktopMagicEngine](https://store.steampowered.com/app/1096550/Desktop_Magic_Engine/), [DesktopMMD3](https://store.steampowered.com/app/1480480/DesktopMMD3Miss_Fish/) and the new [DesktopMMD4](https://store.steampowered.com/app/1968650/DesktopMMD4Born_to_Dance/) . Written in [AutoIt3](https://www.autoitscript.com/site/) script with the help of [awesome ISN AutoIt Studio](https://www.isnetwork.at/).
 
+### Update on 05/22/2022
+Bubble text above model's head. <p>
+<img src="https://user-images.githubusercontent.com/22040708/169680581-c56e6866-4815-4783-b2f8-184ea56eb08e.jpg" width="500px"></img>
+
+
 ### Updated on 05/15/2022:
 New v1.0.6 gives your MMD4 over 200 idle movements. You just need to decide to go with the tame "Idle Actions" or more variety "Misc Actions".
+<p>
+<img src="https://user-images.githubusercontent.com/22040708/168457263-e896111b-d284-4c41-97bd-3dffe002f2af.jpg" width="500px"></img>
 
-![Screen1](https://user-images.githubusercontent.com/22040708/168457263-e896111b-d284-4c41-97bd-3dffe002f2af.jpg)
-
-For the idle movements to work, you need to subscribe to a workshop item first. It's over 160mb big, but it's free, so no biggy, right? The link is below.
-https://steamcommunity.com/sharedfiles/filedetails/?id=2808241801
+For the idle movements to work, you need to subscribe to a workshop item first. It's over 160mb big, but it's free, so no biggy, right? The program will take you to that workshop item if you haven't subscribed it yet.
 
 ### Update on 05/12/2022:
 New feature for random dancing: Right now if you enable "Random Dancing with Program" in the settings, whenever that program plays sound, all the models will start a random dance. In MDE and MMD3, the dance will change every minute, in MMD4, it will randomly choose a VMD file from the workshop contents, and it will change to a new VMD when the current VMD dance ends.
@@ -16,7 +20,7 @@ New feature for random dancing: Right now if you enable "Random Dancing with Pro
 ### Just switched to tray menu based programming instead of regular GUI:
 Currently working with the code to show the models that are loaded:
 
-![screen1](https://user-images.githubusercontent.com/22040708/166290853-4cd0d94e-871d-4b86-95e4-956f89f13e2f.jpg)
+<img src="https://user-images.githubusercontent.com/22040708/166290853-4cd0d94e-871d-4b86-95e4-956f89f13e2f.jpg" width="500px"></img>
 
 More details will be in the Pateon page.
 
