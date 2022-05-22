@@ -1,0 +1,113 @@
+; -- Created with ISN Form Studio 2 for ISN AutoIt Studio -- ;
+#include <StaticConstants.au3>
+#include <GUIConstantsEx.au3>
+#include <WindowsConstants.au3>
+#Include <GuiButton.au3>
+
+$DanceBackground = GUICreate("DanceBackground",1113,531,-1,-1,-1,-1)
+GUICtrlCreateLabel("Song Title",52,51,800,75,-1,-1)
+GUICtrlSetFont(-1,36,700,0,"NSimSun")
+GUICtrlSetColor(-1,"0xC0C0C0")
+GUICtrlSetBkColor(-1,"-2")
+GUICtrlCreateLabel("Song Title",50,50,800,75,-1,-1)
+GUICtrlSetFont(-1,36,700,0,"NSimSun")
+GUICtrlSetBkColor(-1,"-2")
+
+
+
+#cs
+[gui]
+Handle_deklaration=default
+Handle_deklaration_const=default
+title=DanceBackground
+breite=1113
+hoehe=531
+style=-1
+exstyle=-1
+bgcolour=0xF0F0F0
+bgimage=none
+handle=DanceBackground
+parent=
+code=
+codebeforegui=
+xpos=-1
+ypos=-1
+center_gui=true
+title_textmode=normal
+isf_include_once=false
+only_controls_in_isf=false
+const_modus=default
+gui_code_in_function=false
+gui_code_in_function_name=
+gui_event_close=
+gui_event_minimize=
+gui_event_restore=
+gui_event_maximize=
+gui_event_mousemove=
+gui_event_primarydown=
+gui_event_primaryup=
+gui_event_secoundarydown=
+gui_event_secoundaryup=
+gui_event_resized=
+gui_event_dropped=
+defaultfont=MS Sans Serif
+defaultfontsize=8
+[0x002E05AC]
+type=label
+handle=433
+locked=0
+resize=
+x=50
+y=50
+width=800
+height=75
+func=
+font=NSimSun
+fontsize=36
+fontstyle=700
+fontattribute=0
+tooltip=
+bgimage=
+textcolour=0x000000
+id=
+text=Song Title
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=-2
+code=
+order=1
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+[0x003606AA]
+type=label
+handle=442
+locked=0
+resize=
+x=52
+y=51
+width=800
+height=75
+func=
+font=NSimSun
+fontsize=36
+fontstyle=700
+fontattribute=0
+tooltip=
+bgimage=
+textcolour=0xC0C0C0
+id=
+text=Song Title
+state=$GUI_SHOW+$GUI_ENABLE
+style=
+exstyle=
+bgcolour=-2
+code=
+tabpage=-1
+iconindex=
+iconlarge=0
+textmode=text
+order=0
+#ce

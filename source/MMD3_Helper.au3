@@ -32,7 +32,7 @@ opt("MustDeclareVars", 1)
 
 #Region Globals Initialization
 
-Global Const $gsVersion = "v1.1.0"
+Global Const $gsVersion = "v1.1.1"
 
 ; Registry path to save program settings.
 Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
@@ -49,6 +49,7 @@ Global $giRandomDanceWithSound, $gsSoundMonitorProg, $gbRandomDancePlaying = Fal
 Global $giRandomDanceTimeLimit, $ghRandomDanceTimer	; for use with random dance with sound
 
 Global $gbProgDancePlaying = False ; MMD program is playing a dance
+Global $goDanceSong					; The item.json for that dance.
 Global $giRandomIdleAction 		; 0 disable, 1 misc actions, 2 idle actions
 Global $giIdleActionFrequency 	; 0 high, 1 medium, 2 low
 Global $giBubbleText	; Dialog with bubble text.
@@ -117,10 +118,11 @@ If $gsControlProg = "MMD4" and $giRandomDanceWithSound = 1 Then
 	LoadMMD4Dances()
 EndIf
 
-HotKeySet("^{F1}", "ShowArray")
-Func ShowArray()
-	_ArrayDisplay($gaModels)
-EndFunc
+;~ HotKeySet("^{F1}", "ShowArray")
+;~ Func ShowArray()
+;~ 	_ArrayDisplay($gaModels)
+;~ EndFunc
+
 #EndRegion Globals
 
 ; Initialize GUI.
@@ -143,7 +145,15 @@ GUISetBkColor(0, $guiDummy)	; Black background.
 ; c( "work area: x:" & $aWorkRect[0] &" y:" & $aWorkRect[1] & " w:" & $aWorkRect[2] & " h:" & $aWorkRect[3])
 Global $picBackground = GUICtrlCreatePic( @ScriptDir & "\Images\empty.jpg", 0, 0) ; Just a place holder.
 Global $gbBackgroundOn = False	; No background initially
-
+; Set the title and title shadow for songs.
+Global $lbTitleShadow = GUICtrlCreateLabel( "", 52, 51, 800, 75, -1, -1)
+GUICtrlSetColor(-1,"0x000000")
+GUICtrlSetFont( -1, 36, 700, 0, "NSimSun")
+GUICtrlSetBkColor(-1,"-2")
+Global $lbTitle = GUICtrlCreateLabel( "", 50, 50, 800, 75, -1, -1)
+GUICtrlSetColor(-1,"0xC0C0C0")
+GUICtrlSetFont( -1, 36, 700,0, "NSimSun")
+GUICtrlSetBkColor(-1,"-2")
 #Region Tray Menu Initialize
 
 Global Const $gsIconPath = @ScriptDir & "\Icons\"
@@ -226,14 +236,14 @@ EndSwitch
 $iMenuItem += 1
 Global $trayMenuChooseBg = TrayCreateMenu("Choose Background")
 _TrayMenuAddImage($hIcons[3], $iMenuItem)
-Global $traySubChkDanceWithBg = TrayCreateItem("Disable Dancing with BG", $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO)
+Global $traySubChkDanceBgDisable = TrayCreateItem("Disable Dancing with BG", $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO)
 Global $traySubChkRandomBg = TrayCreateItem("Random Background", $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO ) 	; $giDanceRandomBg
 ; TrayCreateItem("", $trayMenuChooseBg)	; Seperator
 Global $traySubBgItems[ $gaBgList[0]+1 ]
 $traySubBgItems[0] = $gaBgList[0]	; set the number of bk at [0]. Now $gaBgList and $traySubBgItems are 1 to 1.
 
 If $giDanceRandomBg = 1 Then TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
-If $giDanceWithBg = 0 Then TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
+If $giDanceWithBg = 0 Then TrayItemSetState($traySubChkDanceBgDisable, $TRAY_CHECKED)
 
 ; Create the background menu list
 For $i = 1 To $gaBgList[0]
@@ -358,19 +368,12 @@ while True
 				EndIf
 			EndIf
 
-		Case $traySubChkDanceWithBg
-			If $giDanceWithBg = 0 Then
-				; Enable dance with Background / Effects.
-				$giDanceWithBg = 1
-				$giDanceRandomBg = 1
-				TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
-			Else
-				; Disable dance with Background / Effects.
-				TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
-				$giDanceWithBg = 0
-				$giDanceRandomBg = 0
-			EndIf
+		Case $traySubChkDanceBgDisable
+			$giDanceWithBg = 0
+			$giCurrentBg = 0
 			SaveSettings()
+			If $gbDanceExtraPlaying Then StopDanceExtra()
+			
 
 		Case $traySubChkDanceWithSound
 			; GUI to set the dance with sound
@@ -397,9 +400,15 @@ while True
 		
 		Case $traySubChkRandomBg
 			; Enable random background
+			$giDanceWithBg = 1
 			$giDanceRandomBg = 1
 			$giCurrentBg = 0 	; No current bg
 			SaveSettings()
+			If $gbProgDancePlaying Then 
+				; MMD is doing a dance, show the background immediately.
+				$gsDanceExtra = "RANDOM"
+			EndIf
+			
 		Case $traySubOpenBgFolder
 			; Open the background folder
 			ShellExecute( @ScriptDir & "\Backgrounds\" )
@@ -474,12 +483,14 @@ while True
 	; Check background list items
 	For $i = 1 to $traySubBgItems[0]
 		If $nTrayMsg = $traySubBgItems[$i] Then
+			$giDanceWithBg = 1
 			$giDanceRandomBg = 0
 			$giCurrentBg = $i
-			If $gbDanceExtraPlaying Then
+			If $gbDanceExtraPlaying or $gbProgDancePlaying Then
 				; Switch to current bg
 				$gsDanceExtra = @ScriptDir & "\Backgrounds\" & $gaBgList[$i] & "\extra.json"
 				StartDanceExtra()
+				$gsDanceExtra = ""
 			EndIf
 		EndIf
 	Next
@@ -1034,7 +1045,7 @@ Func StartDanceExtra()
 	; Run the dance extra for the first time.
 	; Global $gsDanceExtra, $ghDanceTimer, $gaDanceData,$giDanceItem,$gfDanceTime
 	$gsDancePath = GetFolderFromPath( $gsDanceExtra )	; Store the path of dance.
-	$gaDanceData = Json_Decode( FileRead( $gsDanceExtra ) )
+	$gaDanceData = Json_Decode( FileRead( $gsDanceExtra ) )	; Should be the extra.json file
 	If UBound($gaDanceData) = 0 or Not IsObj($gaDanceData[0]) Then
 		c( "error in $gsDanceExtra:" & $gsDanceExtra)
 		$gsDanceExtra = ""
@@ -1098,6 +1109,7 @@ Func ProcessMessage($sProg, $sMessage)
 					If $giDanceWithBg = 1 Then
 						; Time to start a dance. Check if Extra.json exist.
 						Local $sPath = GetFolderFromPath( StringAfter($sMessage, "|") )
+						$goDanceSong = Json_Decode( FileRead( $sPath & "\item.json") )
 						If FileExists( $sPath & "\extra.json" ) Then ; The one with specified background/effects takes the priority
 							$gsDanceExtra = $sPath & "\extra.json"  ; Once $gsDanceExtra is set. It will be processed by the main loop.
 						ElseIf $giDanceWithBg = 1 Then
@@ -1109,10 +1121,11 @@ Func ProcessMessage($sProg, $sMessage)
 					c("Dance stop")
 					$gbProgDancePlaying = False
 					If $gbDanceExtraPlaying Then $gsDanceExtra = "STOP"
-						
+					$goDanceSong = ""
+
 				Case $sMessage = "mouseMidClick"
 					; Say the greeting.
-					If $giActiveModelIndex <> -1 Then
+					If $giActiveModelIndex <> -1 And Not $gbDanceExtraPlaying And Not $gbProgDancePlaying Then
 						Local $sBubbleTitle = "BubbleModel" & $gaModels[$giActiveModelIndex][$MODEL_NO]
 						Local $hBubble = WinGetHandle($sBubbleTitle, "")
 						If @error Then ; Not found, so create a new bubble.
@@ -1142,6 +1155,8 @@ Func ProcessMessage($sProg, $sMessage)
 					If $giDanceWithBg = 1 Then
 						; Time to start a dance. Check if Extra.json exist.
 						Local $sPath = GetFolderFromPath( StringAfter($sMessage, "|") )
+						; Set the global object of current song.
+						$goDanceSong = Json_Decode( FileRead( $sPath & "\item.json") )
 						If FileExists( $sPath & "\extra.json" ) Then ; The one with specified background/effects takes the priority
 							$gsDanceExtra = $sPath & "\extra.json"  ; Once $gsDanceExtra is set. It will be processed by the main loop.
 						ElseIf $giDanceWithBg = 1 Then
@@ -1163,13 +1178,14 @@ Func ProcessMessage($sProg, $sMessage)
 							EndIf
 						EndIf
 						$gbProgDancePlaying = False
+						
 					EndIf
-
 					If $gbDanceExtraPlaying Then $gsDanceExtra = "STOP"
+					$goDanceSong = ""
 				
 				Case $sMessage = "mouseMidClick"
 					; Say the greeting.
-					If $giActiveModelIndex <> -1 Then
+					If $giActiveModelIndex <> -1 And Not $gbDanceExtraPlaying And Not $gbProgDancePlaying Then
 						Local $sBubbleTitle = "BubbleModel" & $gaModels[$giActiveModelIndex][$MODEL_NO]
 						Local $hBubble = WinGetHandle($sBubbleTitle, "")
 						If @error Then ; Not found, so create a new bubble.
@@ -1658,7 +1674,13 @@ Func ShowBackground( $sBgFile )
 
 	_GUICtrlStatic_SetPicture($picBackground, $sBgFile)
 	If @error Then Return SetError(e(1,@ScriptLineNumber))
-
+	
+	; Set the title if available
+	If IsObj($goDanceSong) Then 
+		GUICtrlSetData( $lbTitleShadow, $goDanceSong.Item("name") )
+		GUICtrlSetData( $lbTitle, $goDanceSong.Item("name") )
+	EndIf
+	
 	; Fade in
 	WinSetTrans($guiDummy, "", 0 )
 	GUISetState( @SW_SHOW, $guiDummy)
@@ -1773,6 +1795,8 @@ Func HideBackground($bFast = False)
 	EndIf
   	GUISetState( @SW_HIDE, $guiDummy )
 	; GUICtrlSetImage( $picBackground, @ScriptDir & "\Images\empty.jpg" )
+	GUICtrlSetData( $lbTitleShadow, "" )
+	GUICtrlSetData( $lbTitle, "" )
 	$gbBackgroundOn = False
 EndFunc
 
