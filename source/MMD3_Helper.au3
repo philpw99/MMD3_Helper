@@ -23,6 +23,7 @@
 #include <WinAPICom.au3>	; For sound detection.
 #include <Process.au3>		; To get the process name
 #include <Sound.au3>		; To get the length of a music file.
+#include <Inet.au3>			; To get the random online quote
 #include "Json.au3"
 
 opt("MustDeclareVars", 1)
@@ -31,7 +32,7 @@ opt("MustDeclareVars", 1)
 
 #Region Globals Initialization
 
-Global Const $gsVersion = "v1.0.9"
+Global Const $gsVersion = "v1.1.0"
 
 ; Registry path to save program settings.
 Global Const $gsRegBase = "HKEY_CURRENT_USER\Software\MMD3_Helper"
@@ -49,8 +50,10 @@ Global $giRandomDanceTimeLimit, $ghRandomDanceTimer	; for use with random dance 
 
 Global $gbProgDancePlaying = False ; MMD program is playing a dance
 Global $giRandomIdleAction 		; 0 disable, 1 misc actions, 2 idle actions
-
-Global $giBubbleText = False	; Dialog with bubble text.
+Global $giIdleActionFrequency 	; 0 high, 1 medium, 2 low
+Global $giBubbleText	; Dialog with bubble text.
+Global $gsBubble = ""		; model, duration and text of bubble "model1:5|Hello Master!"
+Global $gaGreetings[0]		; Greeting json objects, not load unless user want to use it.
 
 ; Signified a dance extra.json is going to be used.
 ; Global $gaMMD3Dances[51]  $gaMMD4Dances[0]
@@ -68,13 +71,14 @@ Global $gsThemeLastModified = ""	; Theme.json last modified time in string.
 
 ; Model number and model object data created by json.
 ; action timer is the timer handle to see last time it did random action, ACTIONTIMELIMIT is how long to wait for the next action.
-Global Enum $MODEL_NO, $MODEL_NAME, $MODEL_OBJ, $MODEL_ACTIONTIMER, $MODEL_ACTIONLENGTH, $MODEL_NEXTACTIONTIME
-Global $giModelDataColumns = 6
+Global Enum $MODEL_NO, $MODEL_NAME, $MODEL_OBJ, $MODEL_ACTIONTIMER, $MODEL_ACTIONLENGTH, $MODEL_NEXTACTIONTIME, _ 
+		$MODEL_X, $MODEL_Y, $MODEL_ZOOM, $MODEL_LINES
+Global $giModelDataColumns = 10
 Global $gaModels[0][$giModelDataColumns]		; Models loaded in memory.
 
 Global Enum $MODEL_ITEM_HANDLE, $MODEL_ITEM_NAME
 Global $gaModelMenuItems[0][2]		; Menu Item Handle and name, first one is always "Model List"
-Global $giActiveModelNo = 0		; 0 means active model is unknown.
+Global $giActiveModelIndex = -1		; -1 means active model is unknown.
 
 ; Load all the global data, constants...etc
 #include "GlobalData.au3"
@@ -113,6 +117,10 @@ If $gsControlProg = "MMD4" and $giRandomDanceWithSound = 1 Then
 	LoadMMD4Dances()
 EndIf
 
+HotKeySet("^{F1}", "ShowArray")
+Func ShowArray()
+	_ArrayDisplay($gaModels)
+EndFunc
 #EndRegion Globals
 
 ; Initialize GUI.
@@ -139,7 +147,7 @@ Global $gbBackgroundOn = False	; No background initially
 #Region Tray Menu Initialize
 
 Global Const $gsIconPath = @ScriptDir & "\Icons\"
-Global $hIcons[9]	; 9(0-8) bmps  for the tray menus
+Global $hIcons[10]	; 10(0-9) bmps  for the tray menus
 For $i = 0 to UBound($hIcons)-1
 	$hIcons[$i] = _LoadImage($gsIconPath & $i & ".bmp", $IMAGE_BITMAP)
 Next
@@ -202,24 +210,30 @@ Switch $giRandomIdleAction
 EndSwitch
 TrayCreateItem("", $trayMenuIdleAction)	; Seperator
 Global $traySubIdleActionPath = TrayCreateItem("Specify Idle Action Path", $trayMenuIdleAction)
-
-$iMenuItem += 1
-Global $trayMenuPlayList = TrayCreateMenu("Active Play List:")		; Add / remove / Play the songs in play list.
-_TrayMenuAddImage($hIcons[4], $iMenuItem)
-
-Global $traySubPlaylistStart = TrayCreateItem("Start Active Playlist", $trayMenuPlayList)
-Global $traySubPlaylistStop = TrayCreateItem("Stop Active Playlist", $trayMenuPlayList)
-Global $traySubPlaylistManage = TrayCreateItem("Manage Play Lists", $trayMenuPlayList)
-Global $traySubPlaylistAdd = TrayCreateItem("Add to Active Playlist", $trayMenuPlayList)
+Global $traySubMenuIdlePeriod = TrayCreateMenu("Idle Action Frequency", $trayMenuIdleAction)
+Global $traySubIdleFreqHigh = TrayCreateItem("High", $traySubMenuIdlePeriod, -1, $TRAY_ITEM_RADIO )
+Global $traySubIdleFreqMedium = TrayCreateItem("Medium", $traySubMenuIdlePeriod, -1, $TRAY_ITEM_RADIO )
+Global $traySubIdleFreqLow = TrayCreateItem("Low", $traySubMenuIdlePeriod, -1, $TRAY_ITEM_RADIO )
+Switch $giIdleActionFrequency
+	Case 0
+		TrayItemSetState( $traySubIdleFreqHigh, $TRAY_CHECKED)
+	Case 1
+		TrayItemSetState( $traySubIdleFreqMedium, $TRAY_CHECKED)
+	Case 2
+		TrayItemSetState( $traySubIdleFreqLow, $TRAY_CHECKED)
+EndSwitch
 
 $iMenuItem += 1
 Global $trayMenuChooseBg = TrayCreateMenu("Choose Background")
 _TrayMenuAddImage($hIcons[3], $iMenuItem)
+Global $traySubChkDanceWithBg = TrayCreateItem("Disable Dancing with BG", $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO)
 Global $traySubChkRandomBg = TrayCreateItem("Random Background", $trayMenuChooseBg, -1, $TRAY_ITEM_RADIO ) 	; $giDanceRandomBg
-If $giDanceRandomBg = 1 Then TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
 ; TrayCreateItem("", $trayMenuChooseBg)	; Seperator
 Global $traySubBgItems[ $gaBgList[0]+1 ]
 $traySubBgItems[0] = $gaBgList[0]	; set the number of bk at [0]. Now $gaBgList and $traySubBgItems are 1 to 1.
+
+If $giDanceRandomBg = 1 Then TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
+If $giDanceWithBg = 0 Then TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
 
 ; Create the background menu list
 For $i = 1 To $gaBgList[0]
@@ -231,18 +245,40 @@ TrayCreateItem("", $trayMenuChooseBg)
 ; Open bg folder
 Global $traySubOpenBgFolder = TrayCreateItem("Open Background Folders", $trayMenuChooseBg)
 Global $traySubGetMoreBg = TrayCreateItem("Get More Backgrounds...", $trayMenuChooseBg)
+$iMenuItem += 1
+
+; Bubble text fun !
+Global $trayMenuBubbleText = TrayCreateMenu("Bubble Text Interaction")
+_TrayMenuAddImage($hIcons[9], $iMenuItem)
+Global $traySubBubbleDisable = TrayCreateItem("Disable MidMouse Button Text", $trayMenuBubbleText, -1, $TRAY_ITEM_RADIO)
+Global $traySubBubbleGreetings = TrayCreateItem("Random Greetings", $trayMenuBubbleText, -1, $TRAY_ITEM_RADIO)
+Global $traySubBubbleQuotes = TrayCreateItem("Random Quotes Online", $trayMenuBubbleText, -1, $TRAY_ITEM_RADIO)
+Global $traySubBubbleJokes = TrayCreateItem("Random Jokes Online" , $trayMenuBubbleText, -1, $TRAY_ITEM_RADIO)
+; Global $traySubBubbleRandom =  TrayCreateItem("Random Message Random Time", $trayMenuBubbleText, -1, $TRAY_ITEM_RADIO)
+
+Switch $giBubbleText
+	Case 0	; disable
+		TrayItemSetState($traySubBubbleDisable, $TRAY_CHECKED)
+	Case 1	; random greetings
+		TrayItemSetState($traySubBubbleGreetings, $TRAY_CHECKED)
+	Case 2	; random quotes
+		TrayItemSetState($traySubBubbleQuotes, $TRAY_CHECKED)
+	Case 3	; random Jokes
+		TrayItemSetState($traySubBubbleJokes, $TRAY_CHECKED)
+EndSwitch
+; 0 disable, 1 random greeting, 2 random quote, 3 random message random time.
 
 $iMenuItem += 1
 Global $trayMenuSettings = TrayCreateMenu("Settings")	; If a program play sound, active model random dances.
 _TrayMenuAddImage($hIcons[5], $iMenuItem)
 
 
-Global $traySubChkDanceWithBg = TrayCreateItem("Enable Dance with Background/Effect", $trayMenuSettings)				; $giDanceWithBg
-If $giDanceWithBg = 1 Then TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
-
 ; For Random dancing when a program is playing sound
 Global $traySubChkDanceWithSound = TrayCreateItem("Dance with a Program's Music/Sound", $trayMenuSettings)	; $giRandomDanceWithSound
 if $giRandomDanceWithSound = 1 Then TrayItemSetState($traySubChkDanceWithSound, $TRAY_CHECKED)
+
+
+
 
 ; Show background on which screen
 Global $traySubMenuActiveMonitor = TrayCreateMenu("Show Background on Monitor", $trayMenuSettings)
@@ -325,15 +361,13 @@ while True
 		Case $traySubChkDanceWithBg
 			If $giDanceWithBg = 0 Then
 				; Enable dance with Background / Effects.
-				TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
 				$giDanceWithBg = 1
-				TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
 				$giDanceRandomBg = 1
+				TrayItemSetState($traySubChkRandomBg, $TRAY_CHECKED)
 			Else
 				; Disable dance with Background / Effects.
-				TrayItemSetState($traySubChkDanceWithBg, $TRAY_UNCHECKED)
+				TrayItemSetState($traySubChkDanceWithBg, $TRAY_CHECKED)
 				$giDanceWithBg = 0
-				TrayItemSetState($traySubChkRandomBg, $TRAY_UNCHECKED)
 				$giDanceRandomBg = 0
 			EndIf
 			SaveSettings()
@@ -347,7 +381,20 @@ while True
 			Else
 				TrayItemSetState( $traySubChkDanceWithSound, $TRAY_UNCHECKED)
 			EndIf
-
+		
+		Case $traySubBubbleDisable		; Text disable
+			$giBubbleText = 0
+			SaveSettings()
+		Case $traySubBubbleGreetings	; Random greetings
+			$giBubbleText = 1
+			SaveSettings()
+		Case $traySubBubbleQuotes		; Random quotes
+			$giBubbleText = 2
+			SaveSettings()
+		Case $traySubBubbleJokes		; Random messages at random times
+			$giBubbleText = 3
+			SaveSettings()
+		
 		Case $traySubChkRandomBg
 			; Enable random background
 			$giDanceRandomBg = 1
@@ -393,13 +440,23 @@ while True
 				RegWrite($gsRegBase, "MMD4ActionPath", "REG_SZ", $gsMMD4IdleActionPath)
 				LoadIdleActions()
 			EndIf
+		
+		Case $traySubIdleFreqHigh
+			$giIdleActionFrequency = 0
+			SaveSettings()
+		Case $traySubIdleFreqMedium
+			$giIdleActionFrequency = 1
+			SaveSettings()
+		Case $traySubIdleFreqLow
+			$giIdleActionFrequency = 2
+			SaveSettings()
 			
 		Case $traySubCmdStop
 			StopDance()
 		Case $traySubCmdShowActive
-			SendCommand( $ghHelperHwnd, $ghMMD, "model" & $giActiveModelNo & ".active" )
-		Case $traySubPlaylistStart, $traySubPlaylistStop, $traySubPlaylistManage
-			NotDoneYet()
+			If $giActiveModelIndex <> -1 Then 
+				SendCommand( $ghHelperHwnd, $ghMMD, "model" & $gaModels[$giActiveModelIndex][$MODEL_NO] & ".active" )
+			EndIf 
 		Case $trayTitle
 			About()
 		Case $trayExit
@@ -499,6 +556,22 @@ while True
 			EndIf
 		Next
 	EndIf
+	
+	; Check $gsBubble
+	If $gsBubble <> "" Then
+		Local $iActiveNo = $gaModels[$giActiveModelIndex][$MODEL_NO]
+		Switch $gsBubble
+			Case "RandomGreeting"
+				BubbleRandomGreeting( $iActiveNo )
+			Case "RandomQuote"
+				BubbleRandomQuote( $iActiveNo )
+			Case "RandomJoke"
+				BubbleRandomJoke( $iActiveNo )
+			Case Else
+				PlayBubble()
+		EndSwitch
+	EndIf
+	
 	; Check things every second.
 	if TimerDiff($hTimer1Sec)> 1000 Then
 		CheckEverySecond()
@@ -518,6 +591,107 @@ _WinAPI_CoUninitialize()
 Exit
 
 #Region Main Functions
+;	Loading other GUIs
+#include "Forms\DanceWithSound.au3"
+
+Func LoadGreetings()
+	; get the Greetings.json
+	Local $sText = FileRead( @ScriptDir & "\Texts\Greetings.json" )
+	If @error Then Return SetError( e(1, @ScriptLineNumber) )
+	$gaGreetings = Json_Decode($sText)
+	If UBound($gaGreetings) = 0 Then Return SetError( e(2, @ScriptLineNumber) )
+EndFunc
+
+Func GetModelIndexByNo($iNumber)
+	For $i = 0 To UBound($gaModels) -1
+		If $iNumber = $gaModels[$i][$MODEL_NO] Then Return $i
+	Next
+	Return -1	; Not found
+EndFunc
+
+Func SetBubble( $sText, $iModelNo, $iTimeOut = 5)
+	if $giBubbleText = 0 Then Return 
+	; ModelNo should be the "active:model1|*_*|" number
+	$gsBubble = $iModelNo & "_" & $iTimeOut & "|" & $sText
+	; Now the bubble text is set, it will be played by PlayBubble()
+	c( "set bubble text:" & $gsBubble)
+EndFunc
+
+Func PlayBubble()
+	Local $iPos = StringInStr($gsBubble, "_", 1)
+	Local $iModelNo = Int( StringLeft($gsBubble, $iPos-1) )
+	Local $sTimeOut = StringBtw($gsBubble, "_", "|" )
+	
+	Local $iIndex = GetModelIndexByNo($iModelNo)
+	If $iIndex = -1 then
+		c("error in bubble text:" & $gsBubble)
+		$gsBubble = ""
+		Return SetError(e(1, @ScriptLineNumber))	; not found
+	EndIf
+	
+	Local $oModel = $gaModels[$iIndex][$MODEL_OBJ]
+	; Now reduce the y for the text
+	Local $sText = StringAfter( $gsBubble, "|" )
+	Local $iLines, $aLines = StringSplit( $sText, @CRLF, $STR_ENTIRESPLIT)
+	If $aLines[0] > 0 Then
+		$iLines = $aLines[0]
+		For $i = 1 to $aLines[0]
+			$iLines += Floor( StringLen($aLines[$i]) / 20 )		; long lines will be split, plus crlf
+		Next
+	Else
+		$iLines = Floor( StringLen($aLines[$i]) / 20 ) + 1		; just split the lines
+	EndIf
+	
+	; Save the lines info, in case the model is being moved.
+	$gaModels[$iIndex][$MODEL_LINES] = $iLines
+	
+	Local $aPos = CalcBubblePosition( Number($oModel.Item("x")), Number($oModel.Item("y")), Number($oModel.Item("zoom") ) , $iLines )
+
+	c( "bubble pos x:" & $aPos[0] & " y:" & $aPos[1] & " lines:" & $gaModels[$iIndex][$MODEL_LINES] )
+	c( "Say:" & $sText )
+	
+	RunBubbleExe( $aPos[0], $aPos[1], $sText , "BubbleModel" & $iModelNo, 300, $sTimeOut )
+	$gsBubble = ""
+EndFunc 
+
+Func RunBubbleExe( $x, $y, $sText, $sTitle, $iWidth = 300, $sTimeOut = "5" )
+	Run(@ScriptDir & "\autoit3.exe" & " BubbleText.a3x " & q(_URIEncode($sText)) & " " & q($sTitle) & " " & $x & " " & $y & " " & $iWidth & " " & $sTimeOut )
+	; WinActivate($ghMMD)	; Set the focus back
+EndFunc
+
+Func _URIEncode($sData)
+    ; Prog@ndy
+    Local $aData = StringSplit(BinaryToString(StringToBinary($sData,4),1),"")
+    Local $nChar
+    $sData=""
+    For $i = 1 To $aData[0]
+        ; ConsoleWrite($aData[$i] & @CRLF)
+        $nChar = Asc($aData[$i])
+        Switch $nChar
+            Case 45, 46, 48 To 57, 65 To 90, 95, 97 To 122, 126
+                $sData &= $aData[$i]
+            Case 32
+                $sData &= "+"
+            Case Else
+                $sData &= "%" & Hex($nChar,2)
+        EndSwitch
+    Next
+    Return $sData
+EndFunc
+
+Func _URIDecode($sData)
+    ; Prog@ndy
+    Local $aData = StringSplit(StringReplace($sData,"+"," ",0,1),"%")
+    $sData = ""
+    For $i = 2 To $aData[0]
+        $aData[1] &= Chr(Dec(StringLeft($aData[$i],2))) & StringTrimLeft($aData[$i],2)
+    Next
+    Return BinaryToString(StringToBinary($aData[1],1),4)
+EndFunc
+
+Func q($str)
+	Return '"' & $str & '"'
+EndFunc
 
 Func LoadModelsFromTheme()
 	; This will get the model info from theme.json
@@ -549,8 +723,9 @@ Func LoadModelsFromTheme()
 				$i += 1
 				ReDim $aModels[$i][$giModelDataColumns]
 				Local $iModelNo = Number( StringMid($sModel, 6) )
-				Local $iSearch = _ArraySearch( $gaModels, $iModelNo, 0, 0, 0, 2, 1, $MODEL_NO )
-				If @error = 0 And $gaModels[$iSearch][$MODEL_NAME] = $oModel.Item("name") Then 
+				
+				Local $iSearch = GetModelIndexByNo($iModelNo)
+				If $iSearch <> -1 And $gaModels[$iSearch][$MODEL_NAME] = $oModel.Item("name") Then 
 					; Same model, different obj data
 					$aModels[$i-1][$MODEL_NO] = $iModelNo
 					$aModels[$i-1][$MODEL_NAME] = $oModel.Item("name")
@@ -558,17 +733,24 @@ Func LoadModelsFromTheme()
 					$aModels[$i-1][$MODEL_ACTIONTIMER] = $gaModels[$iSearch][$MODEL_ACTIONTIMER]
 					$aModels[$i-1][$MODEL_ACTIONLENGTH] = $gaModels[$iSearch][$MODEL_ACTIONLENGTH]
 					$aModels[$i-1][$MODEL_NEXTACTIONTIME] = $gaModels[$iSearch][$MODEL_NEXTACTIONTIME]
+					$aModels[$i-1][$MODEL_X] = Number( $oModel.Item("x") )
+					$aModels[$i-1][$MODEL_Y] = Number( $oModel.Item("y") )
+					$aModels[$i-1][$MODEL_ZOOM] = Number( $oModel.Item("zoom") )
+					$aModels[$i-1][$MODEL_LINES] = $gaModels[$iSearch][$MODEL_LINES]
 				Else
 					; Not match, just add it.
 					$aModels[$i-1][$MODEL_NO] = $iModelNo
 					$aModels[$i-1][$MODEL_NAME] = $oModel.Item("name")
 					$aModels[$i-1][$MODEL_OBJ] = $oModel
 					$aModels[$i-1][$MODEL_ACTIONLENGTH] = 0
+					$aModels[$i-1][$MODEL_X] = 0
+					$aModels[$i-1][$MODEL_Y] = 0
+					$aModels[$i-1][$MODEL_ZOOM] = 1
 				EndIf
 			Next
 			; Done adding all the models from them.json. Set the new array.
 			$gaModels = $aModels
-			; $giActiveModelNo = $i
+			; $giActiveModelIndex = $i
 			If UBound($gaModels) > 0 Then RefreshModelListMenu()
 		EndIf
 	ElseIf UBound($gaModels) <> 0 Then 
@@ -578,9 +760,50 @@ Func LoadModelsFromTheme()
 EndFunc
 
 
+Func CalcBubblePosition($x, $y, $zoom, $lines = 1)
+	; Calculate the position of bubble text
+	; Get monitor x and y
+	If $gsControlProg = "MMD3" Then 
+		$x = -$x
+		$zoom = $zoom / 3.5 * 2.5
+	ElseIf $gsControlProg = "DME" Then 
+		$x = -$x
+		$zoom = $zoom / 3.2 * 2.5
+	EndIf
 
-;	Loading other GUIs
-#include "Forms\DanceWithSound.au3"
+	Local $aData = $gaMonitors[$giActiveMonitor][1]
+	Local $aRec[4]
+	For $j = 1 to 4
+		$aRec[$j-1] = DllStructGetData( $aData, $j)
+	Next
+	
+	Local $w = $aRec[2] -$aRec[0], $h = $aRec[3] -$aRec[1]
+	
+	Local $iScrLeft = $aRec[0], $iScrTop = $aRec[1]
+	c( "x:" & $x & " y:" & $y & " w:" & $w & " h:" & $h)
+	; Left
+	Local $iLeft = $iScrLeft + $w * ( $x / 8.66 + 0.5) - 100
+	If $iLeft < $iScrLeft Then 
+		; too much on the left
+		$iLeft = $iScrLeft + 100
+	ElseIf $iLeft + 500 > $aRec[2] Then 
+		; Too much on the right
+		$iLeft = $aRec[2] - 500
+	EndIf
+	
+	; Top
+	Local $iTop = $iScrTop + $h - $y * $h / 5 - $zoom*$h/2.5 - $lines * 40 - 40
+	If $gsControlProg = "MMD4" Then $iTop -= 70		; Patch work.
+
+	If $iTop < $iScrTop Then 
+		$iTop = $iScrTop + 100
+	ElseIf $iTop + 200 > $aRec[3] Then 
+		$iTop = $aRec[3] - 400
+	EndIf
+	
+	Local $aPos[2] = [Floor($iLeft), Floor($iTop)]
+	return $aPos
+EndFunc
 
 Func LoadMMD4Dances()
 	; This function will get the list of all MMD4 dances in the local workshop folder
@@ -886,6 +1109,23 @@ Func ProcessMessage($sProg, $sMessage)
 					c("Dance stop")
 					$gbProgDancePlaying = False
 					If $gbDanceExtraPlaying Then $gsDanceExtra = "STOP"
+						
+				Case $sMessage = "mouseMidClick"
+					; Say the greeting.
+					If $giActiveModelIndex <> -1 Then
+						Local $sBubbleTitle = "BubbleModel" & $gaModels[$giActiveModelIndex][$MODEL_NO]
+						Local $hBubble = WinGetHandle($sBubbleTitle, "")
+						If @error Then ; Not found, so create a new bubble.
+							Switch $giBubbleText
+								Case 1
+									$gsBubble = "RandomGreeting"
+								Case 2
+									$gsBubble = "RandomQuote"
+								Case 3
+									$gsBubble = "RandomJoke"
+							EndSwitch
+						EndIf 
+					EndIf 
 			EndSelect
 		Case "MMD4Core"
 			Select 	; Handle the command messages from mmd4core.
@@ -926,6 +1166,24 @@ Func ProcessMessage($sProg, $sMessage)
 					EndIf
 
 					If $gbDanceExtraPlaying Then $gsDanceExtra = "STOP"
+				
+				Case $sMessage = "mouseMidClick"
+					; Say the greeting.
+					If $giActiveModelIndex <> -1 Then
+						Local $sBubbleTitle = "BubbleModel" & $gaModels[$giActiveModelIndex][$MODEL_NO]
+						Local $hBubble = WinGetHandle($sBubbleTitle, "")
+						If @error Then ; Not found, so create a new bubble.
+							Switch $giBubbleText
+								Case 1
+									$gsBubble = "RandomGreeting"
+								Case 2
+									$gsBubble = "RandomQuote"
+								Case 3
+									$gsBubble = "RandomJoke"
+							EndSwitch
+						EndIf 
+					EndIf 
+
 			EndSelect
 
 		Case "MMD3", "DME", "MMD4"
@@ -934,15 +1192,151 @@ Func ProcessMessage($sProg, $sMessage)
 					; Set active model
 					Local $iNumber = Int( StringBtw($sMessage, "model", "|") )
 					SetActiveModelFromMessage($iNumber)
+					
 				Case StringStartsWith($sMessage, "remove_model:")
 					; Remove a model.
 					Local $iNumber = Int( StringBtw($sMessage, "model:model", "|") )
 					RemoveModelFromMessage($iNumber)
+				Case StringStartsWith($sMessage, "properties:model")
+					; Set properties for a model
+					SetModelProperty($sMessage)
+					; no matter x,y,zoom change. bubble text need to move
+					Local $iModelNo = Int( StringBtw($sMessage, "model", ".") )
+					Local $hBubble = WinGetHandle("BubbleModel" & $iModelNo)
+					If Not @error Then 
+						Local $iIndex = GetModelIndexByNo($iModelNo)
+						If $iIndex <> -1 Then
+							Local $iTextLines = $gaModels[$iIndex][$MODEL_LINES]
+							c("TextLines:" & $iTextLines )
+							Local $aPos = CalcBubblePosition( $gaModels[$iIndex][$MODEL_X], $gaModels[$iIndex][$MODEL_Y], _ 
+										$gaModels[$iIndex][$MODEL_ZOOM], $iTextLines )
+							WinMove($hBubble, "", $aPos[0], $aPos[1])
+						EndIf
+					EndIf
 			EndSelect
 
 	EndSwitch
 
 EndFunc
+
+Func BubbleRandomGreeting($iModelNo)
+	If UBound($gaGreetings) = 0 Then 
+		LoadGreetings()
+		If @error Then Return ; Error
+	EndIf
+	Local $iCount = UBound($gaGreetings)
+	Local $bWorks = False 
+	
+	Local $sPeriod
+	Select
+		Case @HOUR > 5 and @HOUR < 12
+			$sPeriod = "Morning"
+		Case @HOUR > 11 and @HOUR < 18
+			$sPeriod = "Afternoon"
+		Case @HOUR > 17
+			$sPeriod = "Night"
+	EndSelect
+	
+	Do 
+		Local $oGreeting = $gaGreetings[Random(0, $iCount-1, 1)]
+		If $oGreeting.Item("Period") = "All" Or $oGreeting.Item("Period") = $sPeriod Then $bWorks = True 
+		If $oGreeting.Item("Date") = "All" Or $oGreeting.Item("Date") = @MON & "/" & @MDAY Then
+			$bWorks = $bWorks And True
+		Else
+			$bWorks = False
+		EndIf
+	Until $bWorks
+	; Now say the greeting
+	SetBubble($oGreeting.Item("Say"), $iModelNo, $oGreeting.Item("TimeOut") )
+EndFunc
+
+Func BubbleRandomQuote($iModelNo)
+	Local $bText = InetRead("https://api.quotable.io/random", $INET_IGNORESSL )
+	If @error Then
+		c("error getting quote online")
+		Return
+	EndIf
+	Local $sText = BinaryToString($bText)
+	; c( "text return:" & $sText)
+	Local $oQuote = Json_Decode($sText)
+	If Not IsObj($oQuote) Then
+		c("$oQuote is not an object")
+		Return ; Error
+	EndIf
+	$sText = $oQuote.Item("content") & @CRLF & " -- " & $oQuote.Item("author")
+	c("$sText:" & $sText)
+	Local $iReadTime = 2 * ( Floor(StringLen($sText) / 20) + 1 )
+	c("time:" & $iReadTime)
+	SetBubble($sText, $iModelNo, $iReadTime)
+EndFunc
+
+Func BubbleRandomJoke($iModelNo)
+	Local Const $HTTP_STATUS_OK = 200
+	;;Instantiate a WinHttpRequest object
+	Local $WinHttpReq = ObjCreate("winhttp.winhttprequest.5.1")
+	Local $id = Random( 0, 309, 1)	; random range
+	Local $url = "https://jokeapi-v2.p.rapidapi.com/joke/Any?format=json&idRange=" & $id & "-" & String($id+10) & "&blacklistFlags=racist"
+	$WinHttpReq.Open("GET", $url, false)
+	if @error Then Return SetError( e(1, @ScriptLineNumber) )
+	
+	$WinHttpReq.SetRequestHeader( "Content-Type", "application/json")
+	$WinHttpReq.SetRequestHeader( "X-Rapidapi-Host", "jokeapi-v2.p.rapidapi.com" )
+	$WinHttpReq.SetRequestHeader( "X-RapidAPI-Key", "2f3b011dc6msh8f16a2e0b3970a8p15ab50jsna154630ffcba")
+
+	;;Initialize an HTTP request.
+	$WinHttpReq.send()
+	if @error Then Return SetError( e(2, @ScriptLineNumber) )
+	   
+	;;Get all response headers
+	If $WinHttpReq.Status <> $HTTP_STATUS_OK Then
+	  c( "Error with http status:" & $WinHttpReq.Status)
+	  return SetError( e( 3, @ScriptLineNumber) )
+	EndIf
+	
+	Local $sText = $WinHttpReq.ResponseText
+	Local $oJoke = Json_Decode( $sText )
+	If Not IsObj($oJoke) Then Return SetError( e(3, @ScriptLineNumber))
+	
+	If $oJoke.Item("type") = "twopart" Then 
+		$sText = $oJoke.Item("setup") & @CRLF & @CRLF & $oJoke.Item("delivery")
+	Else 
+		$sText = $oJoke.Item("joke")
+	EndIf
+	Local $iReadTime = 2 * ( Floor(StringLen($sText) / 20) + 1 )
+	SetBubble($sText, $iModelNo, $iReadTime)
+EndFunc
+
+Func SetModelProperty( $sMessage)
+	Local $iModelNo = Int( StringBtw( $sMessage, "model", "." ) )
+	If $iModelNo = 0 Then Return  ; Error
+	Local $sText = StringBtw($sMessage, ".", "|")
+	Local $oModel = Json_Decode($sText)
+	If Not IsObj($oModel) Then Return ; Error
+	Local $iIndex = GetModelIndexByNo($iModelNo)
+	If $iIndex = -1 Then Return ; Error
+	If $oModel.Item("x") Then 
+		$gaModels[$iIndex][$MODEL_X] = Number( $oModel.Item("x") )
+		c( "Set model x :" & $gaModels[$iIndex][$MODEL_X])
+	EndIf
+	If $oModel.Item("y") Then 
+		$gaModels[$iIndex][$MODEL_Y] = Number( $oModel.Item("y") )
+		c( "Set model y :" & $gaModels[$iIndex][$MODEL_Y])
+	EndIf
+	If $oModel.Item("zoom") Then
+		$gaModels[$iIndex][$MODEL_ZOOM] = Number( $oModel.Item("zoom") )
+		c( "Set model zoom :" & $gaModels[$iIndex][$MODEL_ZOOM])
+	EndIf
+EndFunc
+
+Func GetModelNoFromMsg( $sMessage, $delimiter )
+	; It will return the 1 from like "xxxx:model1."
+	Local $iPos = StringInStr($sMessage, "model", 1) + 5
+	If $iPos = 5 Then Return 0; Error, "model" not found 
+	Local $iPos2 = StringInStr($sMessage, $Delimiter, 1, 1, $iPos + 5)
+	If $iPos2 = 0 Then Return 0; Error
+	Return Number( StringMid($sMessage, $iPos, $iPos2-$iPos) )
+EndFunc
+
 
 Func StringAfter( $String, $Delimiter)
 	Local $iPos = StringInStr( $String, $Delimiter, 2)
@@ -951,84 +1345,78 @@ Func StringAfter( $String, $Delimiter)
 EndFunc
 
 Func RemoveModelFromMessage($iNumber)
-	; A model was removed by mmd3
-	Local $iCount = UBound($gaModels), $bFound = False , $iIndex
+	; A model was removed by mmd3 or mmd4 or dme
+	Local $iCount = UBound($gaModels)
 	If $iCount = 0 Then
-		$giActiveModelNo = 0
+		$giActiveModelIndex = -1
 		Return  ; no data anyway
 	EndIf
 
-	For $i = 0 to $iCount -1
-		if $gaModels[$i][$MODEL_NO] = $iNumber Then
-			; Found a match
-			$bFound = True
-			$iIndex = $i
-			ExitLoop
-		EndIf
-	Next
-
-	If $bFound Then
+	Local $iIndex = GetModelIndexByNo($iNumber)
+	If $iIndex <> -1 Then
 		; Found the model to delete. number is $iIndex
 		If $iIndex = 0 Then
+			; First in the list
 			If $iCount = 1 Then
 				; Last model to be removed
-				$giActiveModelNo = 0
+				$giActiveModelIndex = -1
 			Else
-				$giActiveModelNo = $gaModels[1][$MODEL_NO] ; Next model's number
+				$giActiveModelIndex = 0 ; Next model's index is also 0
 			EndIf
 		ElseIf $iIndex = $iCount-1 Then ; Last model
-			$giActiveModelNo = $gaModels[$iIndex-1][$MODEL_NO]
+			$giActiveModelIndex = $iIndex-1
 		Else
-			$giActiveModelNo = $gaModels[$iIndex+1][$MODEL_NO]	; Next model's number
+			$giActiveModelIndex = $iIndex	; Next model's index is the same
 		EndIf
 		_ArrayDelete($gaModels, $iIndex)
 		; Set the items again.
+		If $giActiveModelIndex = -1 Then 
+			TrayItemSetText($trayMenuModels, "Active Model: None")
+		Else
+			TrayItemSetText($trayMenuModels, "Active Model: " & $gaModels[$giActiveModelIndex][$MODEL_NAME]) 
+		EndIf 
 		RefreshModelListMenu()
 	Else
 		; Not found. Do nothing.
-
 	EndIf
-
 EndFunc
 
 
 Func SetActiveModelFromMessage($iNumber)
-	c( "Set active:" & $iNumber & " current:" & $giActiveModelNo)
-	If Not IsInt($iNumber) Then Return
-	; If $iNumber = $giActiveModelNo Then Return
-	Local $iCount = UBound($gaModels), $bFound = False
+	c( "Set active:" & $iNumber & " current index:" & $giActiveModelIndex)
+	If Not IsInt($iNumber) Then
+		c("set active model not an int.")
+		Return 
+	EndIf
+	; If $iNumber = $giActiveModelIndex Then Return
+	Local $iCount = UBound($gaModels)
 	Local $sName
 	If $iCount = 0 Then
 		; No models loaded. Maybe just give it some time.
-		Sleep(100)
+		; Sleep(100)
 		; AddModel($iNumber)
 		LoadModelsFromTheme()
 	EndIf
-	For $i = 0 to $iCount -1
-		if $gaModels[$i][$MODEL_NO] = $iNumber Then
-			; Found a match
-			$giActiveModelNo = $iNumber
-			$bFound = True
-			TrayItemSetText($trayMenuModels, "Active Model: " & $gaModels[$i][$MODEL_NAME] )
-			ExitLoop
-		EndIf
-	Next
-	If $bFound Then
-		; Found the model.
-		$giActiveModelNo = $iNumber
-	Else
-		; Not found, need to add it to the array
-		; AddModel($iNumber)
-		TrayItemSetText($trayMenuModels, "Active Model: Model " & $iNumber)
+	
+	Local $iIndex = GetModelIndexByNo( $iNumber )
+	If $iIndex = -1 Then 
+		; Error, number not in the model list
+		$giActiveModelIndex = -1
+		TrayItemSetText($trayMenuModels, "Active Model: None")
+		Return 
 	EndIf
-
+	
+	$giActiveModelIndex = $iIndex
+	c( "Set new active model index:" & $giActiveModelIndex)
+	TrayItemSetText($trayMenuModels, "Active Model: " & $gaModels[$giActiveModelIndex][$MODEL_NAME] )
+	RefreshModelListMenu()
 EndFunc
 
 Func SetActiveModelFromMenu($iNumber)
 	; No, you cannot set active model from the menu.
 	; So it will only wave at you, nothing more.
 	If Not IsInt($iNumber) Then Return SetError(e(1,@ScriptLineNumber))
-	; $giActiveModelNo = $iNumber
+	; $giActiveModelIndex = $iNumber
 	SendCommand( $ghHelperHwnd, $ghMMD, "model" & $iNumber & ".active" )
 EndFunc
 
@@ -1045,7 +1433,7 @@ Func AddModel($Number, $sJson = "")
 	Else
 		$gaModels[$iCount][$MODEL_NAME] = "Model " & $Number
 	EndIf
-	$giActiveModelNo = $Number	; The new model will become the active one.
+	$giActiveModelIndex = $Number	; The new model will become the active one.
 	$gaModels[$iCount][$MODEL_ACTIONLENGTH] = 0
 	; Now refresh the model list sub menu
 	RefreshModelListMenu()
@@ -1066,7 +1454,7 @@ Func RefreshModelListMenu()
 		For $i = 0 to $iCount-1
 			; Add tray menu items
 			$gaModelMenuItems[$i][$MODEL_ITEM_HANDLE] = TrayCreateItem( $gaModels[$i][$MODEL_NAME], $trayMenuModels, -1, $TRAY_ITEM_RADIO)
-			If $gaModels[$i][$MODEL_NO] = $giActiveModelNo Then									; If the active model number matches
+			If $i = $giActiveModelIndex Then									; If the active model number matches
 				TrayItemSetState($gaModelMenuItems[$i][$MODEL_ITEM_HANDLE], $TRAY_CHECKED)	; Set it to be checked.
 				TrayItemSetText($trayMenuModels, "Active Model: " & $gaModels[$i][$MODEL_NAME])
 			EndIf
@@ -1124,6 +1512,8 @@ Func InitSettings()
 	$giRandomDanceWithSound = 0
 	$gsSoundMonitorProg = "vlc.exe"
 	$giRandomIdleAction = 0		; 0 disable, 1 misc actions, 2 idle actions
+	$giIdleActionFrequency = 1	; 0 high, 1 medium, 2 low
+	$giBubbleText = 0 	; 0 disable, 1 enable
 EndFunc
 
 Func SaveSettings()
@@ -1135,6 +1525,8 @@ Func SaveSettings()
 	RegWrite( $gsRegBase, "RandomDanceWithSound", "REG_DWORD", $giRandomDanceWithSound )
 	RegWrite( $gsRegBase, "SoundMonitorProgram", "REG_SZ", $gsSoundMonitorProg )
 	RegWrite( $gsRegBase, "MMD4IdleAction", "REG_DWORD", $giRandomIdleAction )
+	RegWrite( $gsRegBase, "IdleActionFrequency", "REG_DWORD", $giIdleActionFrequency )
+	RegWrite( $gsRegBase, "BubbleText", "REG_DWORD", $giBubbleText)
 EndFunc
 
 Func LoadGlobalSettings()
@@ -1187,6 +1579,18 @@ Func LoadGlobalSettings()
 	If Not @error And $sActionPath <> "" Then 
 		; It already have a default global value, but it can also specify here.
 		$gsMMD4IdleActionPath = $sActionPath
+	EndIf
+	
+	$giIdleActionFrequency = RegRead($gsRegBase, "IdleActionFrequency")
+	If @error Then 
+		$bAllOK = False 
+		$giIdleActionFrequency = 1 	; Medium frequency
+	EndIf
+	
+	$giBubbleText = RegRead($gsRegBase, "BubbleText")
+	If @error Then 
+		$bAllOK = False 
+		$giBubbleText = 0
 	EndIf
 	
 	If Not $bAllOK Then SaveSettings()
@@ -1470,6 +1874,7 @@ Func CheckEverySecond()
 	If $gbMMDProgRunning Then 
 		LoadModelsFromTheme()
 	ElseIf UBound($gaModels) > 0 Then 
+		; MMD is not running, so clean up the data
 		ReDim $gaModels[0][$giModelDataColumns]
 	EndIf
 EndFunc
@@ -1493,8 +1898,15 @@ Func MMD4RandomAction()
 				$sActionFile = "\Idle\"
 				$sActionFile &= $gaIdleActions[Random(1, $gaIdleActions[0], 1)]
 			EndIf
-			; Set new time limit
-			$iNewTime = Floor( Random( 10, 20) * 1000 ) ; between 10,000 and 20,000
+			; Set new time interval
+			Switch $giIdleActionFrequency
+				Case 0	; high
+					$iNewTime = Floor( Random( 5, 10) * 1000 ) ; between 1,000 and 5,000
+				Case 1	; medium
+					$iNewTime = Floor( Random( 10, 20) * 1000 ) ; between 5,000 and 15,000
+				Case 2	; Low
+					$iNewTime = Floor( Random( 20, 30) * 1000 ) ; between 15,000 and 30,000
+			EndSwitch
 			$gaModels[$i][$MODEL_ACTIONTIMER] = TimerInit()
 
 			; Get the length of vmd play time.
@@ -1621,7 +2033,7 @@ Func StartRandomDancing()
 				; No model detected yet.
 				$sModel = "model1"
 			Else
-				$sModel = "model" & $giActiveModelNo
+				$sModel = "model" & $giActiveModelIndex
 			EndIf
 
 			if $gbRandomDancePlaying Then
@@ -1646,7 +2058,7 @@ Func StartRandomDancing()
 				; No model detected yet.
 				$sModel = "model1"
 			Else
-				$sModel = "model" & $giActiveModelNo
+				$sModel = "model" & $giActiveModelIndex
 			EndIf
 
 			if $gbRandomDancePlaying Then
@@ -1689,7 +2101,7 @@ Func StartDance($sDanceFile)
 				$sModel = "model1"
 			Else
 				; Set it to the active model.
-				$sModel = "model" & $giActiveModelNo
+				$sModel = "model" & $gaModels[$giActiveModelIndex][$MODEL_NO]
 			EndIf
 			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceReadyAll:" & $sCommand)
 			; For random dance only
@@ -1732,7 +2144,7 @@ Func StartDance($sDanceFile)
 				$sModel = "model1"
 			Else
 				; Set it to the active model.
-				$sModel = "model" & $giActiveModelNo
+				$sModel = "model" & $gaModels[$giActiveModelIndex][$MODEL_NO]
 			EndIf
 			SendCommand($ghHelperHwnd, $ghMMD, $sModel & ".DanceReadyAll:" & $sCommand)
 

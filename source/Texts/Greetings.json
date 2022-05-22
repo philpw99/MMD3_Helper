@@ -1,0 +1,44 @@
+[
+	{
+	"Period":"Morning",
+	"Date":"All",
+	"Say":"Good morning! Mister.",
+	"TimeOut":3
+	},
+	{
+	"Period":"Afternoon",
+	"Date":"All",
+	"Say":"Good afternoon! Mister.",
+	"TimeOut":3
+	},
+	{
+	"Period":"Night",
+	"Date":"All",
+	"Say":"It's a lovely evening! Mister.",
+	"TimeOut":3
+	},
+	{
+	"Period":"All",
+	"Date":"12/25",
+	"Say":"Merry Christmas! Sir.",
+	"TimeOut":3
+	},
+	{
+	"Period":"All",
+	"Date":"01/01",
+	"Say":"Happy New Year! Sir.",
+	"TimeOut":3
+	},
+	{
+	"Period":"All",
+	"Date":"All",
+	"Say":"Greetings! Sir.",
+	"TimeOut":3
+	},
+	{
+	"Period":"All",
+	"Date":"All",
+	"Say":"Hello Master!",
+	"TimeOut":3
+	}
+]
